@@ -5,6 +5,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-01
+### Added
+- Selected-contract mini-analysis: clicking a row now also runs it through
+  the same verdict engine as the Trade analyzer (badge, chance of profit,
+  "why it's a good pick" / "why it's a risky pick" reasons) instead of just
+  showing raw Greeks.
+- "Sort by: Best chance / Best deal" quick filters in the liquid-contracts
+  table, plus new Chance and Deal columns — every visible row is scored the
+  same way (probability of profit; overall verdict), so you can jump straight
+  to the highest-probability or best-scoring contract in the whole chain.
+
+### Changed
+- `lib/analysis.js`'s `analyze()` now also returns a single comparable
+  `verdict.score` (used for the "Best deal" sort) alongside the existing
+  badge/summary/factors.
+
 ## [1.2.0] - 2026-07-01
 ### Added
 - Full English/Bulgarian language switcher (EN/BG toggle in the header),

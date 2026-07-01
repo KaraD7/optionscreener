@@ -249,6 +249,23 @@ tbody tr.selected:hover { background: rgba(88,166,255,0.18); }
 .tablefilters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: flex-end; }
 .tablefilters .field input, .tablefilters .field select { padding: 8px 10px; font-size: 13px; }
 .tablefilters .field { min-width: 110px; }
+.tablefilters .filters { margin-left: 0; }
+
+/* ---- selected-contract mini analysis ---- */
+.miniverdict { margin-top: 10px; }
+.mvhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.mvbadge { font-family: var(--display); font-weight: 700; font-size: 17px; }
+.mvbadge.good { color: var(--cheap); }
+.mvbadge.ok { color: var(--warm); }
+.mvbadge.bad { color: var(--rich); }
+.mvpop { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.mvsummary { font-size: 13px; color: var(--text); line-height: 1.55; margin: 8px 0 12px; }
+.mvcol { margin-top: 10px; }
+.mvcol .mvlabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin-bottom: 5px; }
+.mvcol ul { margin: 0; padding-left: 18px; }
+.mvcol li { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin-bottom: 3px; }
+.mvcol.good li::marker { color: var(--cheap); }
+.mvcol.bad li::marker { color: var(--rich); }
 
 /* ---- manual greeks / calculate button ---- */
 .linklike { background: none; border: none; color: var(--neutral); font-size: 13px; cursor: pointer; padding: 10px 0 0; font-family: var(--body); }

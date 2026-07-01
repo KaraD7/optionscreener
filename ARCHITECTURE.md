@@ -15,7 +15,9 @@ utilities.
 │  Screener.jsx             │  Analyzer.jsx                  │
 │  - fetches /api/options   │  - pure client-side, no fetch  │
 │  - table filters/sort     │  - manual input -> lib/analysis│
-│  - Best/Selected cards    │  - payoff chart + P&L table    │
+│  - Best/Selected cards,   │  - payoff chart + P&L table    │
+│    each run through       │                                 │
+│    lib/analysis.js too    │                                 │
 └──────────┬────────────────┴──────────────┬─────────────────┘
            │                                │
            ▼                                ▼
@@ -24,7 +26,8 @@ utilities.
 │ (server, Node runtime)  │    │ - P&L scenarios + payoff curve│
 │ - orchestrates fetch    │    │ - probability of profit      │
 │ - filters/ranks contracts│   │ - verdict scoring (factors,  │
-└──────────┬───────────────┘    │   translated via lib/i18n.js)│
+└──────────┬───────────────┘    │   score, translated via      │
+           │                    │   lib/i18n.js)                │
            │                     └───────────┬───────────────┘
            ▼                                 ▼
 ┌─────────────────────────┐    ┌─────────────────────────────┐
@@ -57,6 +60,14 @@ utilities.
    the ranking even with a genuine IV). `null` if nothing qualifies.
 6. Returns JSON; `Screener.jsx` renders cards + sortable/filterable table,
    clicking a row pins it as a third "Selected contract" card.
+7. Client-side, `Screener.jsx` also runs every currently-filtered row (and the
+   selected contract) through `lib/analysis.js`'s `analyze()` — same engine
+   the Trade analyzer uses — to get a probability of profit and a verdict per
+   contract. That powers: the "Selected contract" card's mini-analysis (badge,
+   summary, good/bad reasons) and the table's Chance/Deal columns plus the
+   "Best chance" / "Best deal" quick-sort buttons (`pop` and `verdict.score`
+   respectively). `ivRankPct` here is approximated from where the contract's
+   IV sits in the 52-week HV band, since the screener has no real IV history.
 
 ## Data flow — Trade analyzer
 Fully client-side, zero network calls. `lib/analysis.js`:

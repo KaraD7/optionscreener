@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { pct, fix, money, dateStr, ratioColor } from '../../lib/format';
+import { analyze } from '../../lib/analysis';
 import Info from './Info';
 import { useLanguage } from './LanguageContext';
 
@@ -54,6 +55,43 @@ function BestCard({ row, band, eyebrow, sideLabel, onClose, t }) {
   );
 }
 
+function SelectedAnalysis({ a, t }) {
+  if (!a) return null;
+  const good = a.verdict.factors.filter((f) => f.tone === 'good');
+  const bad = a.verdict.factors.filter((f) => f.tone === 'bad');
+  return (
+    <div className="card">
+      <div className="eyebrow">{t('overallRec')}</div>
+      <div className="miniverdict">
+        <div className="mvhead">
+          <span className={`mvbadge ${a.verdict.badgeTone}`}>{a.verdict.badge}</span>
+          <span className="mvpop">{t('popInline', { pop: (a.pop * 100).toFixed(0) })}</span>
+        </div>
+        <p className="mvsummary">{a.verdict.summary}</p>
+        {good.length > 0 && (
+          <div className="mvcol good">
+            <div className="mvlabel">{t('goodReasons')}</div>
+            <ul>{good.map((f) => <li key={f.label}>{f.note}</li>)}</ul>
+          </div>
+        )}
+        {bad.length > 0 && (
+          <div className="mvcol bad">
+            <div className="mvlabel">{t('badReasons')}</div>
+            <ul>{bad.map((f) => <li key={f.label}>{f.note}</li>)}</ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 0-100 percentile of this IV within the stock's 52-week HV band — a rough
+// proxy for "IV Rank" when we only have realized-vol history, not a real IV history.
+function ivRankFromBand(iv, band) {
+  if (!band || band.max <= band.min) return null;
+  return Math.max(0, Math.min(100, ((iv - band.min) / (band.max - band.min)) * 100));
+}
+
 const COLS = [
   { key: 'type', labelKey: 'colType', sort: (a, b) => a.type.localeCompare(b.type) },
   { key: 'strike', labelKey: 'colStrike' },
@@ -68,10 +106,12 @@ const COLS = [
   { key: 'breakeven', labelKey: 'colBE' },
   { key: 'volume', labelKey: 'colVol' },
   { key: 'openInterest', labelKey: 'colOI' },
+  { key: 'pop', labelKey: 'colChance' },
+  { key: 'dealScore', labelKey: 'colDeal' },
 ];
 
 export default function Screener() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [ticker, setTicker] = useState('');
   const [rate, setRate] = useState('4.3');
   const [comm, setComm] = useState('0.65');
@@ -107,21 +147,59 @@ export default function Screener() {
     }
   }
 
-  const visibleRows = useMemo(() => {
+  function analyzeRow(row) {
+    const band = data.hv.band52w;
+    const hvPct = data.hv.hv30 ? data.hv.hv30 * 100 : data.hv.hv20 ? data.hv.hv20 * 100 : null;
+    return analyze({
+      type: row.type,
+      spot: data.spot,
+      strike: row.strike,
+      premium: row.premium,
+      dteDays: row.dte,
+      ivPct: row.iv * 100,
+      hvPct,
+      ivRankPct: ivRankFromBand(row.iv, band),
+      ratePct: rate,
+      commission: comm,
+      contracts: 1,
+      driftMode: 'rf',
+      lang,
+    });
+  }
+
+  const filteredRows = useMemo(() => {
     if (!data) return [];
     let rows = data.rows.filter((r) => side === 'all' || r.type === side);
     if (expFilter !== 'all') rows = rows.filter((r) => String(r.expiration) === expFilter);
     if (minStrike) rows = rows.filter((r) => r.strike >= +minStrike);
     if (maxStrike) rows = rows.filter((r) => r.strike <= +maxStrike);
     if (minVol) rows = rows.filter((r) => (r.volume || 0) >= +minVol);
+    return rows;
+  }, [data, side, expFilter, minStrike, maxStrike, minVol]);
+
+  const analyzedRows = useMemo(() => {
+    if (!data) return [];
+    return filteredRows.map((r) => {
+      const a = analyzeRow(r);
+      return { ...r, pop: a.pop, dealScore: a.verdict.score, dealBadge: a.verdict.badge, dealTone: a.verdict.badgeTone };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredRows, data, rate, comm, lang]);
+
+  const visibleRows = useMemo(() => {
     const col = COLS.find((c) => c.key === sortKey);
-    rows = [...rows].sort((a, b) => {
+    return [...analyzedRows].sort((a, b) => {
       const av = a[sortKey], bv = b[sortKey];
       const cmp = col?.sort ? col.sort(a, b) : (av ?? Infinity) - (bv ?? Infinity);
       return asc ? cmp : -cmp;
     });
-    return rows;
-  }, [data, side, sortKey, asc, expFilter, minStrike, maxStrike, minVol]);
+  }, [analyzedRows, sortKey, asc]);
+
+  const selectedAnalysis = useMemo(() => {
+    if (!selected || !data) return null;
+    return analyzeRow(selected);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, data, rate, comm, lang]);
 
   const expirations = useMemo(() => {
     if (!data) return [];
@@ -131,6 +209,11 @@ export default function Screener() {
   function toggleSort(key) {
     if (key === sortKey) setAsc(!asc);
     else { setSortKey(key); setAsc(true); }
+  }
+
+  function sortDesc(key) {
+    setSortKey(key);
+    setAsc(false);
   }
 
   return (
@@ -199,6 +282,7 @@ export default function Screener() {
                 onClose={() => setSelected(null)}
                 t={t}
               />
+              <SelectedAnalysis a={selectedAnalysis} t={t} />
             </div>
           )}
 
@@ -235,6 +319,13 @@ export default function Screener() {
               <label>{t('minVolume')}</label>
               <input value={minVol} onChange={(e) => setMinVol(e.target.value)} placeholder="—" inputMode="numeric" />
             </div>
+            <div className="field">
+              <label>{t('sortBy')}</label>
+              <div className="filters">
+                <button className={sortKey === 'pop' ? 'on' : ''} onClick={() => sortDesc('pop')}>{t('bestChance')}</button>
+                <button className={sortKey === 'dealScore' ? 'on' : ''} onClick={() => sortDesc('dealScore')}>{t('bestDeal')}</button>
+              </div>
+            </div>
           </div>
 
           <div className="tablebox">
@@ -268,6 +359,8 @@ export default function Screener() {
                     <td>{money(r.breakeven)}</td>
                     <td>{r.volume}</td>
                     <td>{r.openInterest}</td>
+                    <td style={{ color: r.pop >= 0.5 ? 'var(--cheap)' : r.pop >= 0.4 ? 'var(--warm)' : 'var(--rich)' }}>{(r.pop * 100).toFixed(0)}%</td>
+                    <td style={{ color: `var(--${r.dealTone === 'good' ? 'cheap' : r.dealTone === 'ok' ? 'warm' : 'rich'})`, fontWeight: 600 }}>{r.dealBadge}</td>
                   </tr>
                 ))}
               </tbody>
