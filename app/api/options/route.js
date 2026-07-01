@@ -15,6 +15,8 @@ const MAX_EXPIRATIONS = 30;
 const STRIKE_WINDOW = 10; // each side of spot
 const MIN_OI = 10;
 const MIN_VOL = 10;
+const MIN_IV = 0.02; // below this, Yahoo's IV solve is unreliable (near-zero time value)
+const MIN_DTE_FOR_RANK = 2; // 0-1 DTE contracts have near-zero extrinsic value; skip for "best" picks
 
 // Resolve concurrency-limited fetches so we don't hammer Yahoo or time out.
 async function inBatches(items, size, fn) {
@@ -111,7 +113,7 @@ export async function GET(req) {
           if (c.strike < lo || c.strike > hi) continue;
           if (!liquid(c)) continue;
           const iv = c.impliedVolatility;
-          if (!(iv > 0)) continue;
+          if (!(iv > MIN_IV)) continue;
 
           const g = greeks({ S: spot, K: c.strike, T, r, sigma: iv, type: side });
           const premium =
@@ -147,16 +149,24 @@ export async function GET(req) {
     }
 
     // Cheapest vol = lowest IV/HV, separately for calls and puts.
+    // Excludes 0-1 DTE contracts: they carry almost no extrinsic value, so any
+    // IV solved for them is numerically unstable and not a meaningful signal.
     const eligible = (t) =>
       rows
-        .filter((x) => x.type === t && x.ivHv != null && x.premium > 0 && x.dte >= 1)
+        .filter(
+          (x) =>
+            x.type === t &&
+            x.ivHv != null &&
+            x.premium > 0 &&
+            x.dte >= MIN_DTE_FOR_RANK
+        )
         .sort((a, b) => a.ivHv - b.ivHv);
     const bestCall = eligible('call')[0] || null;
     const bestPut = eligible('put')[0] || null;
 
-    // ATM IV (nearest strike, nearest expiry) for the headline gauge.
+    // ATM IV (nearest strike, nearest *reliable* expiry) for the headline gauge.
     let atmIv = null;
-    const front = rows.filter((x) => x.dte >= 1);
+    const front = rows.filter((x) => x.dte >= MIN_DTE_FOR_RANK);
     if (front.length) {
       const minDte = Math.min(...front.map((x) => x.dte));
       const frontRows = front.filter((x) => x.dte === minDte);

@@ -56,3 +56,37 @@ shape back: `{ spot, expirations[], calls[], puts[], closes[] }`.
 ## Tech
 
 Next.js 14 (App Router), React 18, zero runtime dependencies beyond Next/React.
+
+## Workflow: versioning, releases, previews, rollback
+
+This repo uses a standard professional setup — no manual deploy steps, full
+history, instant rollback. Full rules for Claude Code sessions live in
+`CLAUDE.md`; the technical map lives in `ARCHITECTURE.md`; the human-readable
+history lives in `CHANGELOG.md`.
+
+**Day to day:** work on a branch, open a PR. Vercel's GitHub integration
+comments a live preview URL on every PR automatically — that's your visual
+review step, on the real app, before anything touches production.
+
+**Releasing:**
+```bash
+git add -A
+git commit -m "feat(scope): what changed"
+git push
+git tag v1.2.0
+git push origin v1.2.0
+```
+The tag push triggers `.github/workflows/release.yml`, which creates a GitHub
+Release with notes pulled from `CHANGELOG.md` plus an auto-generated commit
+diff. Merging to `main` separately triggers a Vercel production deploy.
+
+**Rollback**, fastest to slowest:
+1. Vercel dashboard → Deployments → pick a previous one → *Promote to
+   Production*. Seconds, no git needed.
+2. `git revert <commit>` or `git checkout v1.0.0` to go back in the repo.
+3. Every GitHub Release page has the exact source attached under *Assets* if
+   you ever need it outside git entirely.
+
+**One-time setup on GitHub** (after first push): Settings → Actions → General
+→ confirm "Read and write permissions" is on for the default `GITHUB_TOKEN`,
+so the release workflow can create releases.

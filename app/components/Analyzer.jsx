@@ -4,18 +4,18 @@ import { useMemo, useState } from 'react';
 import { analyze } from '../../lib/analysis';
 import { pct, fix, money, ratioColor } from '../../lib/format';
 import PayoffChart from './PayoffChart';
+import Info from './Info';
 
-function Field({ label, value, set, placeholder, hint }) {
+function Field({ label, value, set, placeholder, info }) {
   return (
     <div className="field">
-      <label>{label}</label>
+      <label>{label} {info && <Info text={info} />}</label>
       <input
         value={value}
         placeholder={placeholder}
         inputMode="decimal"
         onChange={(e) => set(e.target.value)}
       />
-      {hint && <span className="subhint">{hint}</span>}
     </div>
   );
 }
@@ -28,6 +28,7 @@ export default function Analyzer() {
   const [dte, setDte] = useState('');
   const [iv, setIv] = useState('');
   const [hv, setHv] = useState('');
+  const [ivRank, setIvRank] = useState('');
   const [rate, setRate] = useState('4.3');
   const [comm, setComm] = useState('0.65');
   const [qty, setQty] = useState('1');
@@ -36,11 +37,26 @@ export default function Analyzer() {
   const [customDrift, setCustomDrift] = useState('8');
   const [horizon, setHorizon] = useState(null); // null => expiration
 
+  const [showGreeks, setShowGreeks] = useState(false);
+  const [ibkrScale, setIbkrScale] = useState(true);
+  const [mDelta, setMDelta] = useState('');
+  const [mGamma, setMGamma] = useState('');
+  const [mTheta, setMTheta] = useState('');
+  const [mVega, setMVega] = useState('');
+
+  const [submitted, setSubmitted] = useState(false);
+
   const ready =
     +spot > 0 && +strike > 0 && +premium > 0 && +dte > 0 && +iv > 0;
 
+  const manualGreeks = useMemo(() => {
+    const div = ibkrScale ? 100 : 1;
+    const conv = (v) => (v === '' || v == null ? '' : +v / div);
+    return { delta: conv(mDelta), gamma: conv(mGamma), theta: conv(mTheta), vega: conv(mVega) };
+  }, [mDelta, mGamma, mTheta, mVega, ibkrScale]);
+
   const a = useMemo(() => {
-    if (!ready) return null;
+    if (!ready || !submitted) return null;
     const d = +dte;
     return analyze({
       type,
@@ -50,6 +66,7 @@ export default function Analyzer() {
       dteDays: d,
       ivPct: iv,
       hvPct: hv || null,
+      ivRankPct: ivRank || null,
       ratePct: rate,
       commission: comm,
       contracts: qty,
@@ -57,8 +74,9 @@ export default function Analyzer() {
       driftMode: drift,
       customDriftPct: customDrift,
       horizonDays: horizon == null ? d : horizon,
+      manualGreeks,
     });
-  }, [ready, type, spot, strike, premium, dte, iv, hv, rate, comm, qty, target, drift, customDrift, horizon]);
+  }, [ready, submitted, type, spot, strike, premium, dte, iv, hv, ivRank, rate, comm, qty, target, drift, customDrift, horizon, manualGreeks]);
 
   const dteNum = +dte || 0;
   const hz = horizon == null ? dteNum : horizon;
@@ -72,18 +90,19 @@ export default function Analyzer() {
         </div>
 
         <div className="formgrid">
-          <Field label="Underlying price" value={spot} set={setSpot} placeholder="100" />
-          <Field label="Strike" value={strike} set={setStrike} placeholder="105" />
-          <Field label="Premium / share" value={premium} set={setPremium} placeholder="2.40" />
-          <Field label="Days to expiry" value={dte} set={setDte} placeholder="30" />
-          <Field label="IV %" value={iv} set={setIv} placeholder="35" />
-          <Field label="HV % (optional)" value={hv} set={setHv} placeholder="28" hint="enables the vol-value read" />
-          <Field label="Target price (optional)" value={target} set={setTarget} placeholder="115" hint="for reward:risk" />
+          <Field label="Underlying price" value={spot} set={setSpot} placeholder="24.09" />
+          <Field label="Strike" value={strike} set={setStrike} placeholder="27" />
+          <Field label="Premium / share" value={premium} set={setPremium} placeholder="0.40" info="Last / mid цена на опцията за 1 акция (не за целия контракт). IBKR я показва като Last, Bid или Ask." />
+          <Field label="Days to expiry" value={dte} set={setDte} placeholder="142" />
+          <Field label="IV last %" value={iv} set={setIv} placeholder="20.5" info="Implied Volatility на конкретния контракт точно както е показана в IBKR (IV last)." />
+          <Field label="IV Hist Vol % (optional)" value={hv} set={setHv} placeholder="95.0" info="Историческата (реализирана) волатилност на акцията, както я показва IBKR (IV Hist Vol). Използва се за сравнение IV/HV." />
+          <Field label="52w IV Rank (optional)" value={ivRank} set={setIvRank} placeholder="29" info="Процентил 0-100: къде е текущото IV спрямо диапазона си за последните 52 седмици. IBKR го показва директно." />
+          <Field label="Target price (optional)" value={target} set={setTarget} placeholder="30" info="Цена, до която очакваш акцията да стигне — използва се за reward:risk сметката." />
           <Field label="Contracts" value={qty} set={setQty} placeholder="1" />
-          <Field label="Risk-free %" value={rate} set={setRate} />
-          <Field label="Commission / contract" value={comm} set={setComm} />
+          <Field label="Risk-free %" value={rate} set={setRate} info="Безрисков лихвен процент (напр. доходност на US Treasury). Влиза в модела за цена на опции. Малко влияние — обикновено се оставя ~4-4.5%." />
+          <Field label="Commission / contract" value={comm} set={setComm} info="Таксата на брокера ти за 1 контракт — не bid/ask цена. Влиза в breakeven сметката." />
           <div className="field">
-            <label>Drift assumption</label>
+            <label>Drift assumption <Info text="Каква средногодишна доходност приемаш за акцията при смятане на шанса за успех. 'Risk-free' е неутрално моделно допускане, не прогноза." /></label>
             <select value={drift} onChange={(e) => setDrift(e.target.value)}>
               <option value="rf">Risk-free</option>
               <option value="zero">Zero (conservative)</option>
@@ -94,14 +113,49 @@ export default function Analyzer() {
             <Field label="Expected annual %" value={customDrift} set={setCustomDrift} />
           )}
         </div>
+
+        <button className="linklike" onClick={() => setShowGreeks((v) => !v)}>
+          {showGreeks ? '− Hide' : '+ Add'} manual Greeks (paste from broker)
+        </button>
+        {showGreeks && (
+          <div className="greeksbox">
+            <div className="greeksrow">
+              <span>Values are</span>
+              <button className={`chip ${ibkrScale ? 'on' : ''}`} onClick={() => setIbkrScale(true)}>
+                per-contract (IBKR ×100)
+              </button>
+              <button className={`chip ${!ibkrScale ? 'on' : ''}`} onClick={() => setIbkrScale(false)}>
+                per-share
+              </button>
+            </div>
+            <div className="formgrid" style={{ marginTop: 10 }}>
+              <Field label="Delta" value={mDelta} set={setMDelta} placeholder="22.646" />
+              <Field label="Gamma" value={mGamma} set={setMGamma} placeholder="9.002" />
+              <Field label="Theta" value={mTheta} set={setMTheta} placeholder="-0.410" />
+              <Field label="Vega (optional)" value={mVega} set={setMVega} placeholder="—" info="С колко се променя цената на опцията при промяна на IV с 1 процентен пункт." />
+            </div>
+            <p className="subhint" style={{ marginTop: 8 }}>
+              Тези стойности само заменят Greeks панела за показване (за да съвпада точно с брокера ти).
+              Шансът за успех и P&amp;L таблицата продължават да се смятат от IV, което си въвел горе.
+            </p>
+          </div>
+        )}
+
+        <button className="run wide" onClick={() => setSubmitted(true)} disabled={!ready}>
+          Calculate — оцени сделката
+        </button>
       </div>
 
       {!ready && (
         <div className="hint">
-          Fill in price, strike, premium, days to expiry and IV. Everything else is optional — add
-          HV for the volatility-value read and a target price for reward:risk. The analyzer never
-          touches the internet; it’s pure math on your numbers.
+          Попълни цена, strike, премия, дни до падеж и IV last. Всичко останало е по желание — HV
+          и IV Rank подобряват оценката, target price дава reward:risk. Анализаторът не ползва
+          интернет — чиста математика върху твоите числа.
         </div>
+      )}
+
+      {ready && !submitted && (
+        <div className="hint">Натисни „Calculate", за да видиш P&amp;L, шанс за успех и оценка.</div>
       )}
 
       {a && (
@@ -146,7 +200,7 @@ export default function Analyzer() {
                 <div className="cell"><div className="k">Delta</div><div className="v">{fix(a.greeks.delta, 3)}</div></div>
                 <div className="cell"><div className="k">Gamma</div><div className="v">{fix(a.greeks.gamma, 4)}</div></div>
                 <div className="cell"><div className="k">Theta /day</div><div className="v">{fix(a.greeks.theta, 3)}</div></div>
-                <div className="cell"><div className="k">Vega /1%</div><div className="v">{fix(a.greeks.vega, 3)}</div></div>
+                <div className="cell"><div className="k">Vega /1% <Info text="Промяна в цената на опцията при +1 процентен пункт IV." /></div><div className="v">{fix(a.greeks.vega, 3)}</div></div>
                 <div className="cell"><div className="k">IV / HV</div><div className="v" style={{ color: ratioColor(a.ivHv) }}>{a.ivHv != null ? fix(a.ivHv, 2) : '—'}</div></div>
                 <div className="cell"><div className="k">Total cost</div><div className="v">{money(a.totalCost)}</div></div>
               </div>
@@ -192,9 +246,9 @@ export default function Analyzer() {
             <b>How the verdict works.</b> The “chance of profit” is the probability the stock finishes
             past your breakeven, modeled as a lognormal distribution using your IV as the volatility and
             a <b>{a.mu === 0 ? 'zero' : drift === 'rf' ? 'risk-free' : 'custom'}</b> drift — it is a model
-            assumption, not a forecast. The badge is a transparent sum of the factors shown above, with a
-            hard cap to “Expensive” when IV is rich versus HV. Greeks are Black-Scholes estimates.
-            This is an analysis tool, <b>not financial advice</b>.
+            assumption, not a forecast. The badge sums the factors above, capped to “Expensive” when IV
+            is rich versus HV or IV Rank is very high. Greeks are Black-Scholes unless you supplied your
+            own above. This is an analysis tool, <b>not financial advice</b>.
           </div>
         </>
       )}
