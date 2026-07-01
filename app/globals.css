@@ -49,7 +49,15 @@ body {
   letter-spacing: -0.02em;
 }
 .mark b { color: var(--cheap); }
-.tagline { color: var(--muted); font-size: 13px; }
+.mark .ver { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--faint); margin-left: 8px; vertical-align: middle; }
+.tagline { color: var(--muted); font-size: 13px; flex: 1; }
+
+.langswitch { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
+.langswitch button {
+  background: transparent; border: none; color: var(--muted); font-family: var(--display);
+  font-weight: 600; font-size: 12px; padding: 5px 12px; border-radius: 7px; cursor: pointer;
+}
+.langswitch button.on { background: var(--cheap); color: #05210f; }
 
 .controls {
   display: grid;
@@ -112,8 +120,15 @@ body {
 /* ---- best cards ---- */
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 26px; }
 @media (max-width: 720px) { .cards { grid-template-columns: 1fr; } }
+.cards.single { grid-template-columns: 1fr; margin-top: -10px; }
 
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; position: relative; overflow: hidden; }
+.cardclose {
+  position: absolute; top: 14px; right: 14px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+  font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center;
+}
+.cardclose:hover { color: var(--text); border-color: var(--faint); }
 .card.call { border-top: 3px solid var(--call); }
 .card.put { border-top: 3px solid var(--put); }
 .card .eyebrow { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
@@ -146,7 +161,10 @@ table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-s
 thead th { position: sticky; top: 0; background: var(--panel-2); color: var(--muted); font-weight: 500; text-align: right; padding: 11px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; border-bottom: 1px solid var(--line); }
 thead th:first-child, tbody td:first-child { text-align: left; }
 tbody td { text-align: right; padding: 9px 12px; border-bottom: 1px solid rgba(40,48,57,0.6); }
+tbody tr { cursor: pointer; }
 tbody tr:hover { background: var(--panel-2); }
+tbody tr.selected { background: rgba(88,166,255,0.12); }
+tbody tr.selected:hover { background: rgba(88,166,255,0.18); }
 .tag { font-family: var(--display); font-weight: 600; font-size: 11px; padding: 2px 7px; border-radius: 5px; }
 .tag.call { color: var(--call); background: rgba(65,194,106,0.12); }
 .tag.put { color: var(--put); background: rgba(240,106,74,0.12); }

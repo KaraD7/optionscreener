@@ -5,6 +5,7 @@ import { analyze } from '../../lib/analysis';
 import { pct, fix, money, ratioColor } from '../../lib/format';
 import PayoffChart from './PayoffChart';
 import Info from './Info';
+import { useLanguage } from './LanguageContext';
 
 function Field({ label, value, set, placeholder, info }) {
   return (
@@ -21,6 +22,7 @@ function Field({ label, value, set, placeholder, info }) {
 }
 
 export default function Analyzer() {
+  const { t, lang } = useLanguage();
   const [type, setType] = useState('call');
   const [spot, setSpot] = useState('');
   const [strike, setStrike] = useState('');
@@ -75,8 +77,9 @@ export default function Analyzer() {
       customDriftPct: customDrift,
       horizonDays: horizon == null ? d : horizon,
       manualGreeks,
+      lang,
     });
-  }, [ready, submitted, type, spot, strike, premium, dte, iv, hv, ivRank, rate, comm, qty, target, drift, customDrift, horizon, manualGreeks]);
+  }, [ready, submitted, type, spot, strike, premium, dte, iv, hv, ivRank, rate, comm, qty, target, drift, customDrift, horizon, manualGreeks, lang]);
 
   const dteNum = +dte || 0;
   const hz = horizon == null ? dteNum : horizon;
@@ -85,77 +88,70 @@ export default function Analyzer() {
     <>
       <div className="analyzer-form">
         <div className="seg">
-          <button className={type === 'call' ? 'on call' : ''} onClick={() => setType('call')}>Call</button>
-          <button className={type === 'put' ? 'on put' : ''} onClick={() => setType('put')}>Put</button>
+          <button className={type === 'call' ? 'on call' : ''} onClick={() => setType('call')}>{t('call_')}</button>
+          <button className={type === 'put' ? 'on put' : ''} onClick={() => setType('put')}>{t('put_')}</button>
         </div>
 
         <div className="formgrid">
-          <Field label="Underlying price" value={spot} set={setSpot} placeholder="24.09" />
-          <Field label="Strike" value={strike} set={setStrike} placeholder="27" />
-          <Field label="Premium / share" value={premium} set={setPremium} placeholder="0.40" info="Last / mid цена на опцията за 1 акция (не за целия контракт). IBKR я показва като Last, Bid или Ask." />
-          <Field label="Days to expiry" value={dte} set={setDte} placeholder="142" />
-          <Field label="IV last %" value={iv} set={setIv} placeholder="20.5" info="Implied Volatility на конкретния контракт точно както е показана в IBKR (IV last)." />
-          <Field label="IV Hist Vol % (optional)" value={hv} set={setHv} placeholder="95.0" info="Историческата (реализирана) волатилност на акцията, както я показва IBKR (IV Hist Vol). Използва се за сравнение IV/HV." />
-          <Field label="52w IV Rank (optional)" value={ivRank} set={setIvRank} placeholder="29" info="Процентил 0-100: къде е текущото IV спрямо диапазона си за последните 52 седмици. IBKR го показва директно." />
-          <Field label="Target price (optional)" value={target} set={setTarget} placeholder="30" info="Цена, до която очакваш акцията да стигне — използва се за reward:risk сметката." />
-          <Field label="Contracts" value={qty} set={setQty} placeholder="1" />
-          <Field label="Risk-free %" value={rate} set={setRate} info="Безрисков лихвен процент (напр. доходност на US Treasury). Влиза в модела за цена на опции. Малко влияние — обикновено се оставя ~4-4.5%." />
-          <Field label="Commission / contract" value={comm} set={setComm} info="Таксата на брокера ти за 1 контракт — не bid/ask цена. Влиза в breakeven сметката." />
+          <Field label={t('underlyingPrice')} value={spot} set={setSpot} placeholder="24.09" />
+          <Field label={t('strikeField')} value={strike} set={setStrike} placeholder="27" />
+          <Field label={t('premiumShare')} value={premium} set={setPremium} placeholder="0.40" info={t('premiumShareInfo')} />
+          <Field label={t('daysToExpiry')} value={dte} set={setDte} placeholder="142" />
+          <Field label={t('ivLastPct')} value={iv} set={setIv} placeholder="20.5" info={t('ivLastInfo')} />
+          <Field label={t('ivHistVol')} value={hv} set={setHv} placeholder="95.0" info={t('ivHistVolInfo')} />
+          <Field label={t('ivRank')} value={ivRank} set={setIvRank} placeholder="29" info={t('ivRankInfo')} />
+          <Field label={t('targetPrice')} value={target} set={setTarget} placeholder="30" info={t('targetPriceInfo')} />
+          <Field label={t('contracts')} value={qty} set={setQty} placeholder="1" />
+          <Field label={t('riskFreeLabel')} value={rate} set={setRate} info={t('riskFreeInfoAnalyzer')} />
+          <Field label={t('commissionLabel')} value={comm} set={setComm} info={t('commissionInfoAnalyzer')} />
           <div className="field">
-            <label>Drift assumption <Info text="Каква средногодишна доходност приемаш за акцията при смятане на шанса за успех. 'Risk-free' е неутрално моделно допускане, не прогноза." /></label>
+            <label>{t('driftAssumption')} <Info text={t('driftInfo')} /></label>
             <select value={drift} onChange={(e) => setDrift(e.target.value)}>
-              <option value="rf">Risk-free</option>
-              <option value="zero">Zero (conservative)</option>
-              <option value="custom">Custom %</option>
+              <option value="rf">{t('driftRf')}</option>
+              <option value="zero">{t('driftZero')}</option>
+              <option value="custom">{t('driftCustom')}</option>
             </select>
           </div>
           {drift === 'custom' && (
-            <Field label="Expected annual %" value={customDrift} set={setCustomDrift} />
+            <Field label={t('expectedAnnual')} value={customDrift} set={setCustomDrift} />
           )}
         </div>
 
         <button className="linklike" onClick={() => setShowGreeks((v) => !v)}>
-          {showGreeks ? '− Hide' : '+ Add'} manual Greeks (paste from broker)
+          {showGreeks ? t('hideManualGreeks') : t('addManualGreeks')}
         </button>
         {showGreeks && (
           <div className="greeksbox">
             <div className="greeksrow">
-              <span>Values are</span>
+              <span>{t('valuesAre')}</span>
               <button className={`chip ${ibkrScale ? 'on' : ''}`} onClick={() => setIbkrScale(true)}>
-                per-contract (IBKR ×100)
+                {t('perContract')}
               </button>
               <button className={`chip ${!ibkrScale ? 'on' : ''}`} onClick={() => setIbkrScale(false)}>
-                per-share
+                {t('perShare')}
               </button>
             </div>
             <div className="formgrid" style={{ marginTop: 10 }}>
-              <Field label="Delta" value={mDelta} set={setMDelta} placeholder="22.646" />
-              <Field label="Gamma" value={mGamma} set={setMGamma} placeholder="9.002" />
-              <Field label="Theta" value={mTheta} set={setMTheta} placeholder="-0.410" />
-              <Field label="Vega (optional)" value={mVega} set={setMVega} placeholder="—" info="С колко се променя цената на опцията при промяна на IV с 1 процентен пункт." />
+              <Field label={t('delta')} value={mDelta} set={setMDelta} placeholder="22.646" />
+              <Field label={t('gamma')} value={mGamma} set={setMGamma} placeholder="9.002" />
+              <Field label={t('thetaDay')} value={mTheta} set={setMTheta} placeholder="-0.410" />
+              <Field label={t('vegaOptional')} value={mVega} set={setMVega} placeholder="—" info={t('vegaInfo')} />
             </div>
-            <p className="subhint" style={{ marginTop: 8 }}>
-              Тези стойности само заменят Greeks панела за показване (за да съвпада точно с брокера ти).
-              Шансът за успех и P&amp;L таблицата продължават да се смятат от IV, което си въвел горе.
-            </p>
+            <p className="subhint" style={{ marginTop: 8 }}>{t('manualGreeksHint')}</p>
           </div>
         )}
 
         <button className="run wide" onClick={() => setSubmitted(true)} disabled={!ready}>
-          Calculate — оцени сделката
+          {t('calculate')}
         </button>
       </div>
 
       {!ready && (
-        <div className="hint">
-          Попълни цена, strike, премия, дни до падеж и IV last. Всичко останало е по желание — HV
-          и IV Rank подобряват оценката, target price дава reward:risk. Анализаторът не ползва
-          интернет — чиста математика върху твоите числа.
-        </div>
+        <div className="hint">{t('notReadyHint')}</div>
       )}
 
       {ready && !submitted && (
-        <div className="hint">Натисни „Calculate", за да видиш P&amp;L, шанс за успех и оценка.</div>
+        <div className="hint">{t('readyNotSubmittedHint')}</div>
       )}
 
       {a && (
@@ -163,14 +159,18 @@ export default function Analyzer() {
           <div className={`verdict ${a.verdict.badgeTone}`}>
             <div className="vhead">
               <div>
-                <div className="eyebrow">Model read</div>
+                <div className="eyebrow">{t('modelRead')}</div>
                 <div className="badge">{a.verdict.badge}</div>
               </div>
               <div className="chance">
                 <div className="big" style={{ color: a.pop >= 0.5 ? 'var(--cheap)' : a.pop >= 0.4 ? 'var(--warm)' : 'var(--rich)' }}>
                   {(a.pop * 100).toFixed(0)}%
                 </div>
-                <div className="chancelab">chance of profit<br />at expiration</div>
+                <div className="chancelab">
+                  {t('chanceOfProfit').split('\n').map((line, i) => (
+                    <span key={i}>{line}{i === 0 && <br />}</span>
+                  ))}
+                </div>
               </div>
             </div>
             <p className="vsummary">{a.verdict.summary}</p>
@@ -185,30 +185,36 @@ export default function Analyzer() {
           </div>
 
           <div className="summary">
-            <div className="stat"><div className="k">Breakeven</div><div className="v">{money(a.breakeven)}</div></div>
-            <div className="stat"><div className="k">Move to B/E</div><div className="v">{(a.breakevenMovePct >= 0 ? '+' : '') + pct(a.breakevenMovePct)}</div></div>
-            <div className="stat"><div className="k">Max loss</div><div className="v" style={{ color: 'var(--rich)' }}>{money(a.maxLoss)}</div></div>
-            <div className="stat"><div className="k">Max profit</div><div className="v" style={{ color: 'var(--cheap)' }}>{a.maxProfit === Infinity ? 'Unlimited' : money(a.maxProfit)}</div></div>
-            <div className="stat"><div className="k">P(finish ITM)</div><div className="v">{pct(a.pITM)}</div></div>
-            <div className="stat"><div className="k">Exp. 1σ range</div><div className="v">{money(a.band.low)}–{money(a.band.high)}</div></div>
+            <div className="stat"><div className="k">{t('breakeven')}</div><div className="v">{money(a.breakeven)}</div></div>
+            <div className="stat"><div className="k">{t('moveToBE')}</div><div className="v">{(a.breakevenMovePct >= 0 ? '+' : '') + pct(a.breakevenMovePct)}</div></div>
+            <div className="stat"><div className="k">{t('maxLoss')}</div><div className="v" style={{ color: 'var(--rich)' }}>{money(a.maxLoss)}</div></div>
+            <div className="stat"><div className="k">{t('maxProfit')}</div><div className="v" style={{ color: 'var(--cheap)' }}>{a.maxProfit === Infinity ? t('unlimited') : money(a.maxProfit)}</div></div>
+            <div className="stat"><div className="k">{t('pFinishItm')}</div><div className="v">{pct(a.pITM)}</div></div>
+            <div className="stat"><div className="k">{t('exp1Sigma')}</div><div className="v">{money(a.band.low)}–{money(a.band.high)}</div></div>
           </div>
 
           <div className="cards">
             <div className="card">
-              <div className="eyebrow">Greeks (now)</div>
+              <div className="eyebrow">{t('greeksNow')}</div>
               <div className="grid2" style={{ marginTop: 12 }}>
-                <div className="cell"><div className="k">Delta</div><div className="v">{fix(a.greeks.delta, 3)}</div></div>
-                <div className="cell"><div className="k">Gamma</div><div className="v">{fix(a.greeks.gamma, 4)}</div></div>
-                <div className="cell"><div className="k">Theta /day</div><div className="v">{fix(a.greeks.theta, 3)}</div></div>
-                <div className="cell"><div className="k">Vega /1% <Info text="Промяна в цената на опцията при +1 процентен пункт IV." /></div><div className="v">{fix(a.greeks.vega, 3)}</div></div>
-                <div className="cell"><div className="k">IV / HV</div><div className="v" style={{ color: ratioColor(a.ivHv) }}>{a.ivHv != null ? fix(a.ivHv, 2) : '—'}</div></div>
-                <div className="cell"><div className="k">Total cost</div><div className="v">{money(a.totalCost)}</div></div>
+                <div className="cell"><div className="k">{t('delta')}</div><div className="v">{fix(a.greeks.delta, 3)}</div></div>
+                <div className="cell"><div className="k">{t('gamma')}</div><div className="v">{fix(a.greeks.gamma, 4)}</div></div>
+                <div className="cell"><div className="k">{t('thetaDay')}</div><div className="v">{fix(a.greeks.theta, 3)}</div></div>
+                <div className="cell"><div className="k">{t('vega1pct')} <Info text={t('vegaInfo')} /></div><div className="v">{fix(a.greeks.vega, 3)}</div></div>
+                <div className="cell"><div className="k">{t('ivHvLabel')}</div><div className="v" style={{ color: ratioColor(a.ivHv) }}>{a.ivHv != null ? fix(a.ivHv, 2) : '—'}</div></div>
+                <div className="cell"><div className="k">{t('totalCost')}</div><div className="v">{money(a.totalCost)}</div></div>
               </div>
             </div>
 
             <div className="card">
-              <div className="eyebrow">Payoff — {hz >= dteNum ? 'at expiration' : `${hz}d held, ${dteNum - hz}d left`}</div>
-              <PayoffChart curve={a.curve} spot={a.spot} breakeven={a.breakeven} />
+              <div className="eyebrow">{hz >= dteNum ? t('payoffAtExpiration') : t('payoffHeld', { held: hz, left: dteNum - hz })}</div>
+              <PayoffChart
+                curve={a.curve}
+                spot={a.spot}
+                breakeven={a.breakeven}
+                spotLabel={`spot ${money(a.spot)}`}
+                beLabel={`B/E ${money(a.breakeven)}`}
+              />
               <input
                 className="slider"
                 type="range"
@@ -218,16 +224,16 @@ export default function Analyzer() {
                 onChange={(e) => setHorizon(+e.target.value)}
               />
               <div className="sliderlab">
-                <span>today</span><span>expiration</span>
+                <span>{t('today')}</span><span>{t('expiration')}</span>
               </div>
             </div>
           </div>
 
-          <div className="tablehead"><h2>P&amp;L at expiration by stock move</h2></div>
+          <div className="tablehead"><h2>{t('pnlHeading')}</h2></div>
           <div className="tablebox">
             <table>
               <thead>
-                <tr><th>Stock price</th><th>Move</th><th>P&amp;L /contract</th><th>P&amp;L total ({qty})</th></tr>
+                <tr><th>{t('stockPrice')}</th><th>{t('move')}</th><th>{t('pnlPerContract')}</th><th>{t('pnlTotal', { qty })}</th></tr>
               </thead>
               <tbody>
                 {a.scenarios.map((s, i) => (
@@ -242,14 +248,14 @@ export default function Analyzer() {
             </table>
           </div>
 
-          <div className="foot">
-            <b>How the verdict works.</b> The “chance of profit” is the probability the stock finishes
-            past your breakeven, modeled as a lognormal distribution using your IV as the volatility and
-            a <b>{a.mu === 0 ? 'zero' : drift === 'rf' ? 'risk-free' : 'custom'}</b> drift — it is a model
-            assumption, not a forecast. The badge sums the factors above, capped to “Expensive” when IV
-            is rich versus HV or IV Rank is very high. Greeks are Black-Scholes unless you supplied your
-            own above. This is an analysis tool, <b>not financial advice</b>.
-          </div>
+          <div
+            className="foot"
+            dangerouslySetInnerHTML={{
+              __html: t('analyzerFoot', {
+                drift: a.mu === 0 ? t('driftZeroWord') : drift === 'rf' ? t('driftRfWord') : t('driftCustomWord'),
+              }),
+            }}
+          />
         </>
       )}
     </>

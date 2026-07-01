@@ -2,7 +2,7 @@
 
 import { money } from '../../lib/format';
 
-export default function PayoffChart({ curve, spot, breakeven }) {
+export default function PayoffChart({ curve, spot, breakeven, spotLabel, beLabel }) {
   if (!curve || curve.length < 2) return null;
   const W = 600;
   const H = 260;
@@ -51,13 +51,13 @@ export default function PayoffChart({ curve, spot, breakeven }) {
 
       {/* spot marker */}
       <line x1={x(spot)} y1={padT} x2={x(spot)} y2={H - padB} stroke="var(--neutral)" strokeWidth="1" strokeDasharray="3 3" />
-      <text x={x(spot)} y={H - 8} fill="var(--neutral)" fontSize="11" fontFamily="var(--mono)" textAnchor="middle">spot {money(spot)}</text>
+      <text x={x(spot)} y={H - 8} fill="var(--neutral)" fontSize="11" fontFamily="var(--mono)" textAnchor="middle">{spotLabel || `spot ${money(spot)}`}</text>
 
       {/* breakeven marker */}
       {breakeven > pMin && breakeven < pMax && (
         <>
           <line x1={x(breakeven)} y1={padT} x2={x(breakeven)} y2={H - padB} stroke="var(--muted)" strokeWidth="1" strokeDasharray="2 4" />
-          <text x={x(breakeven)} y={padT + 4} fill="var(--muted)" fontSize="11" fontFamily="var(--mono)" textAnchor="middle">B/E {money(breakeven)}</text>
+          <text x={x(breakeven)} y={padT + 4} fill="var(--muted)" fontSize="11" fontFamily="var(--mono)" textAnchor="middle">{beLabel || `B/E ${money(breakeven)}`}</text>
         </>
       )}
     </svg>

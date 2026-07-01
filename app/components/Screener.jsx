@@ -3,10 +3,11 @@
 import { useMemo, useState } from 'react';
 import { pct, fix, money, dateStr, ratioColor } from '../../lib/format';
 import Info from './Info';
+import { useLanguage } from './LanguageContext';
 
-function Gauge({ iv, band }) {
+function Gauge({ iv, band, t }) {
   if (!band || band.max <= band.min) {
-    return <div className="gauge"><div className="cap">No 52-week HV range available.</div></div>;
+    return <div className="gauge"><div className="cap">{t('gaugeNoRange')}</div></div>;
   }
   const span = band.max - band.min;
   const clamp = (x) => Math.max(0, Math.min(1, x));
@@ -20,56 +21,57 @@ function Gauge({ iv, band }) {
         <span>HV {pct(band.min)}</span>
         <span>HV {pct(band.max)}</span>
       </div>
-      <div className="cap">
-        Marker = this option&apos;s IV against the stock&apos;s 52-week realized-vol range. Left is cheap.
-      </div>
+      <div className="cap">{t('gaugeCaption')}</div>
     </div>
   );
 }
 
-function BestCard({ row, band }) {
+function BestCard({ row, band, eyebrow, sideLabel, onClose, t }) {
   if (!row) return null;
-  const isCall = row.type === 'call';
   return (
     <div className={`card ${row.type}`}>
-      <div className="eyebrow">Cheapest volatility</div>
-      <div className="side">{isCall ? 'BEST CALL' : 'BEST PUT'}</div>
+      {onClose && (
+        <button className="cardclose" onClick={onClose} aria-label="Close">×</button>
+      )}
+      <div className="eyebrow">{eyebrow}</div>
+      <div className="side">{sideLabel}</div>
       <div className="headline">
         <span className="ratio" style={{ color: ratioColor(row.ivHv) }}>{fix(row.ivHv, 2)}</span>
-        <span className="ratiolab">IV / HV</span>
+        <span className="ratiolab">{t('ivHvLabel')}</span>
       </div>
-      <Gauge iv={row.iv} band={band} />
+      <Gauge iv={row.iv} band={band} t={t} />
       <div className="grid2">
-        <div className="cell"><div className="k">Strike</div><div className="v">{money(row.strike)}</div></div>
-        <div className="cell"><div className="k">Expiry · DTE</div><div className="v">{dateStr(row.expiration)} · {row.dte}d</div></div>
-        <div className="cell"><div className="k">IV last</div><div className="v">{pct(row.iv)}</div></div>
-        <div className="cell"><div className="k">Premium</div><div className="v">{money(row.premium)}</div></div>
-        <div className="cell"><div className="k">Delta</div><div className="v">{fix(row.delta, 3)}</div></div>
-        <div className="cell"><div className="k">Gamma</div><div className="v">{fix(row.gamma, 4)}</div></div>
-        <div className="cell"><div className="k">Theta /day</div><div className="v">{fix(row.theta, 3)}</div></div>
-        <div className="cell"><div className="k">Breakeven</div><div className="v">{money(row.breakeven)}</div></div>
+        <div className="cell"><div className="k">{t('strike')}</div><div className="v">{money(row.strike)}</div></div>
+        <div className="cell"><div className="k">{t('expiryDte')}</div><div className="v">{dateStr(row.expiration)} · {row.dte}d</div></div>
+        <div className="cell"><div className="k">{t('ivLast')}</div><div className="v">{pct(row.iv)}</div></div>
+        <div className="cell"><div className="k">{t('premium')}</div><div className="v">{money(row.premium)}</div></div>
+        <div className="cell"><div className="k">{t('delta')}</div><div className="v">{fix(row.delta, 3)}</div></div>
+        <div className="cell"><div className="k">{t('gamma')}</div><div className="v">{fix(row.gamma, 4)}</div></div>
+        <div className="cell"><div className="k">{t('thetaDay')}</div><div className="v">{fix(row.theta, 3)}</div></div>
+        <div className="cell"><div className="k">{t('breakeven')}</div><div className="v">{money(row.breakeven)}</div></div>
       </div>
     </div>
   );
 }
 
 const COLS = [
-  { key: 'type', label: 'Type', sort: (a, b) => a.type.localeCompare(b.type) },
-  { key: 'strike', label: 'Strike' },
-  { key: 'expiration', label: 'Expiry' },
-  { key: 'dte', label: 'DTE' },
-  { key: 'iv', label: 'IV' },
-  { key: 'ivHv', label: 'IV/HV' },
-  { key: 'delta', label: 'Delta' },
-  { key: 'gamma', label: 'Gamma' },
-  { key: 'theta', label: 'Theta' },
-  { key: 'premium', label: 'Premium' },
-  { key: 'breakeven', label: 'B/E' },
-  { key: 'volume', label: 'Vol' },
-  { key: 'openInterest', label: 'OI' },
+  { key: 'type', labelKey: 'colType', sort: (a, b) => a.type.localeCompare(b.type) },
+  { key: 'strike', labelKey: 'colStrike' },
+  { key: 'expiration', labelKey: 'colExpiry' },
+  { key: 'dte', labelKey: 'colDte' },
+  { key: 'iv', labelKey: 'colIv' },
+  { key: 'ivHv', labelKey: 'colIvHv' },
+  { key: 'delta', labelKey: 'colDelta' },
+  { key: 'gamma', labelKey: 'colGamma' },
+  { key: 'theta', labelKey: 'colTheta' },
+  { key: 'premium', labelKey: 'colPremium' },
+  { key: 'breakeven', labelKey: 'colBE' },
+  { key: 'volume', labelKey: 'colVol' },
+  { key: 'openInterest', labelKey: 'colOI' },
 ];
 
 export default function Screener() {
+  const { t } = useLanguage();
   const [ticker, setTicker] = useState('');
   const [rate, setRate] = useState('4.3');
   const [comm, setComm] = useState('0.65');
@@ -83,15 +85,17 @@ export default function Screener() {
   const [minStrike, setMinStrike] = useState('');
   const [maxStrike, setMaxStrike] = useState('');
   const [minVol, setMinVol] = useState('');
+  const [selected, setSelected] = useState(null);
 
   async function run() {
-    const t = ticker.trim().toUpperCase();
-    if (!t) return;
+    const tk = ticker.trim().toUpperCase();
+    if (!tk) return;
     setLoading(true);
     setErr('');
     setData(null);
+    setSelected(null);
     try {
-      const q = new URLSearchParams({ ticker: t, rate, commission: comm });
+      const q = new URLSearchParams({ ticker: tk, rate, commission: comm });
       const res = await fetch(`/api/options?${q}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Request failed');
@@ -133,7 +137,7 @@ export default function Screener() {
     <>
       <div className="controls">
         <div className="field full">
-          <label>US ticker</label>
+          <label>{t('tickerLabel')}</label>
           <input
             value={ticker}
             placeholder="AAPL"
@@ -143,53 +147,67 @@ export default function Screener() {
           />
         </div>
         <div className="field">
-          <label>Risk-free % <Info text="Безрисков лихвен процент (напр. доходност на US Treasury). Използва се в модела за цена на опциите. Малко влияние — обикновено не се пипа, ~4-4.5%." /></label>
+          <label>{t('riskFreeLabel')} <Info text={t('riskFreeInfo')} /></label>
           <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" />
         </div>
         <div className="field">
-          <label>Commission /contract <Info text="Таксата, която твоят брокер взима за 1 контракт (не bid/ask цена). Влиза в сметката за breakeven." /></label>
+          <label>{t('commissionLabel')} <Info text={t('commissionInfo')} /></label>
           <input value={comm} onChange={(e) => setComm(e.target.value)} inputMode="decimal" />
         </div>
         <button className="run" onClick={run} disabled={loading}>
-          {loading ? 'Loading…' : 'Analyze'}
+          {loading ? t('loading') : t('analyze')}
         </button>
       </div>
 
       {err && <div className="msg err">{err}</div>}
       {!data && !err && !loading && (
-        <div className="hint">
-          Enter a US stock symbol. The screener pulls the live option chain, computes Black-Scholes
-          Greeks, and ranks contracts by <b>IV/HV</b> — implied volatility divided by the stock&apos;s
-          realized volatility. A low ratio means the option is pricing in less movement than the stock
-          has actually delivered, i.e. comparatively cheap to buy.
-        </div>
+        <div className="hint" dangerouslySetInnerHTML={{ __html: t('screenerHint') }} />
       )}
 
       {data && (
         <>
           <div className="summary">
             <div className="sym">{data.ticker}<span className="co">{data.name}</span></div>
-            <div className="stat"><div className="k">Price</div><div className="v">{money(data.spot)}</div></div>
-            <div className="stat"><div className="k">ATM IV</div><div className="v">{pct(data.hv.atmIv)}</div></div>
-            <div className="stat"><div className="k">HV 20d</div><div className="v">{pct(data.hv.hv20)}</div></div>
-            <div className="stat"><div className="k">HV 30d</div><div className="v">{pct(data.hv.hv30)}</div></div>
+            <div className="stat"><div className="k">{t('price')}</div><div className="v">{money(data.spot)}</div></div>
+            <div className="stat"><div className="k">{t('atmIv')}</div><div className="v">{pct(data.hv.atmIv)}</div></div>
+            <div className="stat"><div className="k">{t('hv20')}</div><div className="v">{pct(data.hv.hv20)}</div></div>
+            <div className="stat"><div className="k">{t('hv30')}</div><div className="v">{pct(data.hv.hv30)}</div></div>
             <div className="stat">
-              <div className="k">HV 52w range</div>
+              <div className="k">{t('hvBand')}</div>
               <div className="v">{data.hv.band52w ? `${pct(data.hv.band52w.min)}–${pct(data.hv.band52w.max)}` : '—'}</div>
             </div>
           </div>
 
+          {data.rows.length === 0 && (
+            <div className="msg err" style={{ marginTop: 0, marginBottom: 22 }}>
+              {t('noReliableIv')}
+            </div>
+          )}
+
           <div className="cards">
-            <BestCard row={data.bestCall} band={data.hv.band52w} />
-            <BestCard row={data.bestPut} band={data.hv.band52w} />
+            <BestCard row={data.bestCall} band={data.hv.band52w} eyebrow={t('cheapestVol')} sideLabel={t('bestCall')} t={t} />
+            <BestCard row={data.bestPut} band={data.hv.band52w} eyebrow={t('cheapestVol')} sideLabel={t('bestPut')} t={t} />
           </div>
 
+          {selected && (
+            <div className="cards single">
+              <BestCard
+                row={selected}
+                band={data.hv.band52w}
+                eyebrow={t('selectedContract')}
+                sideLabel={selected.type === 'call' ? t('call') : t('put')}
+                onClose={() => setSelected(null)}
+                t={t}
+              />
+            </div>
+          )}
+
           <div className="tablehead">
-            <h2>{visibleRows.length} liquid contracts</h2>
+            <h2>{t('liquidContracts', { n: visibleRows.length })}</h2>
             <div className="filters">
               {['all', 'call', 'put'].map((s) => (
                 <button key={s} className={side === s ? 'on' : ''} onClick={() => setSide(s)}>
-                  {s === 'all' ? 'All' : s === 'call' ? 'Calls' : 'Puts'}
+                  {s === 'all' ? t('all') : s === 'call' ? t('calls') : t('puts')}
                 </button>
               ))}
             </div>
@@ -197,24 +215,24 @@ export default function Screener() {
 
           <div className="tablefilters">
             <div className="field">
-              <label>Expiry</label>
+              <label>{t('expiry')}</label>
               <select value={expFilter} onChange={(e) => setExpFilter(e.target.value)}>
-                <option value="all">All dates</option>
+                <option value="all">{t('allDates')}</option>
                 {expirations.map((e) => (
                   <option key={e} value={e}>{dateStr(e)}</option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label>Min strike</label>
+              <label>{t('minStrike')}</label>
               <input value={minStrike} onChange={(e) => setMinStrike(e.target.value)} placeholder="—" inputMode="decimal" />
             </div>
             <div className="field">
-              <label>Max strike</label>
+              <label>{t('maxStrike')}</label>
               <input value={maxStrike} onChange={(e) => setMaxStrike(e.target.value)} placeholder="—" inputMode="decimal" />
             </div>
             <div className="field">
-              <label>Min volume</label>
+              <label>{t('minVolume')}</label>
               <input value={minVol} onChange={(e) => setMinVol(e.target.value)} placeholder="—" inputMode="numeric" />
             </div>
           </div>
@@ -225,14 +243,18 @@ export default function Screener() {
                 <tr>
                   {COLS.map((c) => (
                     <th key={c.key} onClick={() => toggleSort(c.key)}>
-                      {c.label}{sortKey === c.key ? (asc ? ' ↑' : ' ↓') : ''}
+                      {t(c.labelKey)}{sortKey === c.key ? (asc ? ' ↑' : ' ↓') : ''}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map((r, i) => (
-                  <tr key={r.contractSymbol || i}>
+                  <tr
+                    key={r.contractSymbol || i}
+                    className={selected && (selected.contractSymbol || null) === r.contractSymbol ? 'selected' : ''}
+                    onClick={() => setSelected((cur) => (cur && cur.contractSymbol === r.contractSymbol ? null : r))}
+                  >
                     <td><span className={`tag ${r.type}`}>{r.type === 'call' ? 'C' : 'P'}</span></td>
                     <td className={r.inTheMoney ? 'itm' : ''}>{fix(r.strike, 2)}</td>
                     <td>{dateStr(r.expiration)}</td>
@@ -252,13 +274,7 @@ export default function Screener() {
             </table>
           </div>
 
-          <div className="foot">
-            <b>How to read it.</b> IV/HV below ~0.8 (green) = the option is pricing in less movement than
-            the stock recently delivered — relatively cheap for a buyer. Above ~1.4 (red) = expensive.
-            Greeks are Black-Scholes estimates; HV is realized volatility, a free stand-in for true
-            historical implied volatility. Data is delayed and unofficial (Yahoo Finance). This is an
-            analysis tool, <b>not financial advice</b>.
-          </div>
+          <div className="foot" dangerouslySetInnerHTML={{ __html: t('screenerFoot') }} />
         </>
       )}
     </>

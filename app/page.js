@@ -3,28 +3,50 @@
 import { useState } from 'react';
 import Screener from './components/Screener';
 import Analyzer from './components/Analyzer';
+import { LanguageProvider, useLanguage } from './components/LanguageContext';
+import pkg from '../package.json';
 
-export default function Page() {
+function LangSwitcher() {
+  const { lang, setLang } = useLanguage();
+  return (
+    <div className="langswitch">
+      <button className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>EN</button>
+      <button className={lang === 'bg' ? 'on' : ''} onClick={() => setLang('bg')}>BG</button>
+    </div>
+  );
+}
+
+function AppBody() {
   const [tab, setTab] = useState('screener');
+  const { t } = useLanguage();
   return (
     <div className="wrap">
       <div className="mast">
-        <div className="mark">IV<b>/</b>HV</div>
-        <div className="tagline">Buy options when their volatility is cheap — not when the stock looks exciting.</div>
+        <div className="mark">IV<b>/</b>HV<span className="ver">v{pkg.version}</span></div>
+        <div className="tagline">{t('tagline')}</div>
+        <LangSwitcher />
       </div>
 
       <div className="tabs">
         <button className={tab === 'screener' ? 'on' : ''} onClick={() => setTab('screener')}>
-          Screener
-          <span>scan a US ticker’s whole chain</span>
+          {t('tabScreener')}
+          <span>{t('tabScreenerSub')}</span>
         </button>
         <button className={tab === 'analyzer' ? 'on' : ''} onClick={() => setTab('analyzer')}>
-          Trade analyzer
-          <span>enter one option, get the verdict</span>
+          {t('tabAnalyzer')}
+          <span>{t('tabAnalyzerSub')}</span>
         </button>
       </div>
 
       {tab === 'screener' ? <Screener /> : <Analyzer />}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <LanguageProvider>
+      <AppBody />
+    </LanguageProvider>
   );
 }

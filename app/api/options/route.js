@@ -16,7 +16,20 @@ const STRIKE_WINDOW = 10; // each side of spot
 const MIN_OI = 10;
 const MIN_VOL = 10;
 const MIN_IV = 0.02; // below this, Yahoo's IV solve is unreliable (near-zero time value)
-const MIN_DTE_FOR_RANK = 2; // 0-1 DTE contracts have near-zero extrinsic value; skip for "best" picks
+const MIN_DTE_FOR_RANK = 2; // 0-1 DTE contracts have near-zero extrinsic value; skip entirely
+const MIN_BEST_DELTA = 0.05; // "best" picks must have meaningful payoff sensitivity
+
+// When Yahoo's IV solver can't organically price a contract (thinly/never traded strike,
+// stale last price vs. current spot, whatever the reason), it silently falls back to one of
+// a small fixed template of values instead of a real per-contract solve. Observed across
+// unrelated tickers/strikes/expiries, those values sit within ~2% of an exact power of two
+// times 1/128 (0.0078125, 0.015625, 0.03125, 0.0625, 0.125, 0.25, 0.5, ...) — a coincidence
+// no genuine solve would land on. Detect and skip those instead of trusting them.
+function isSyntheticIv(iv) {
+  const ratio = iv / 0.0078125;
+  const nearestPow2 = Math.pow(2, Math.round(Math.log2(ratio)));
+  return Math.abs(ratio - nearestPow2) / nearestPow2 < 0.02;
+}
 
 // Resolve concurrency-limited fetches so we don't hammer Yahoo or time out.
 async function inBatches(items, size, fn) {
@@ -98,7 +111,7 @@ export async function GET(req) {
       const exp = chain.expirationDate;
       const T = Math.max((exp - now) / YEAR, 0);
       const dte = Math.round((exp - now) / 86400);
-      if (dte < 0) continue;
+      if (dte < MIN_DTE_FOR_RANK) continue;
 
       for (const side of ['call', 'put']) {
         const list = side === 'call' ? chain.calls : chain.puts;
@@ -113,7 +126,8 @@ export async function GET(req) {
           if (c.strike < lo || c.strike > hi) continue;
           if (!liquid(c)) continue;
           const iv = c.impliedVolatility;
-          if (!(iv > MIN_IV)) continue;
+          if (!(iv > MIN_IV) || isSyntheticIv(iv)) continue;
+          const ivHv = hvBase ? iv / hvBase : null;
 
           const g = greeks({ S: spot, K: c.strike, T, r, sigma: iv, type: side });
           const premium =
@@ -121,7 +135,6 @@ export async function GET(req) {
           const costPerShare = premium + comm / 100;
           const breakeven =
             side === 'call' ? c.strike + costPerShare : c.strike - costPerShare;
-          const ivHv = hvBase ? iv / hvBase : null;
 
           rows.push({
             type: side,
@@ -148,9 +161,9 @@ export async function GET(req) {
       }
     }
 
-    // Cheapest vol = lowest IV/HV, separately for calls and puts.
-    // Excludes 0-1 DTE contracts: they carry almost no extrinsic value, so any
-    // IV solved for them is numerically unstable and not a meaningful signal.
+    // Cheapest vol = lowest IV/HV, separately for calls and puts. Also require a
+    // non-trivial delta: even with a genuine IV, a strike far enough out at a short
+    // enough dte has near-zero payoff sensitivity and makes a useless "best" pick.
     const eligible = (t) =>
       rows
         .filter(
@@ -158,18 +171,17 @@ export async function GET(req) {
             x.type === t &&
             x.ivHv != null &&
             x.premium > 0 &&
-            x.dte >= MIN_DTE_FOR_RANK
+            Math.abs(x.delta) > MIN_BEST_DELTA
         )
         .sort((a, b) => a.ivHv - b.ivHv);
     const bestCall = eligible('call')[0] || null;
     const bestPut = eligible('put')[0] || null;
 
-    // ATM IV (nearest strike, nearest *reliable* expiry) for the headline gauge.
+    // ATM IV (nearest strike, nearest expiry) for the headline gauge.
     let atmIv = null;
-    const front = rows.filter((x) => x.dte >= MIN_DTE_FOR_RANK);
-    if (front.length) {
-      const minDte = Math.min(...front.map((x) => x.dte));
-      const frontRows = front.filter((x) => x.dte === minDte);
+    if (rows.length) {
+      const minDte = Math.min(...rows.map((x) => x.dte));
+      const frontRows = rows.filter((x) => x.dte === minDte);
       const atm = frontRows.sort(
         (a, b) => Math.abs(a.strike - spot) - Math.abs(b.strike - spot)
       )[0];
