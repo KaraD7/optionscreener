@@ -123,3 +123,11 @@ low-realized-vol, densely-listed ETF right at the open) — that's the honest
 result of Yahoo not having a trustworthy IV to offer, not a bug in the filter.
 The screener surfaces this with an explicit "no reliable IV solve" message
 rather than silently rendering fabricated Greeks.
+
+Pattern observed so far: noticeably worse pre-market and right around the
+9:30am ET open (16:30 Sofia time), better once the market's been open a
+while. Spot-checked 2026-07-02 ~10:52 UTC (pre-market): AAPL 1 row, BA 7
+rows, MSFT 0, NVDA 0 — same filtering logic as the day before, so this is
+expected variance in Yahoo's feed quality by time of day, not a regression.
+If someone reports "barely any contracts show up," check when they tested
+before assuming the filters need loosening.

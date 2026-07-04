@@ -66,3 +66,14 @@ app on purpose. If it starts failing (Vercel datacenter IPs get rate-limited),
 swap that one file for Tradier's free API without touching anything else —
 the API route only expects `{ spot, expirations[], calls[], puts[], closes[] }`
 back from it.
+
+**"Only 1-2 liquid contracts show up" is very often not a bug.** Yahoo's free
+`impliedVolatility` field frequently falls back to a fake placeholder value
+instead of a real solve (see `isSyntheticIv()` in `app/api/options/route.js`
+and "Known fragility" in `ARCHITECTURE.md`). The app correctly filters those
+out rather than showing fabricated Greeks, so the contract count legitimately
+drops to a handful — or zero — for many tickers, especially pre-market (well
+before 9:30am ET / 16:30 Sofia time). Confirmed live on 2026-07-02 ~10:52 UTC
+(pre-market): AAPL 1 row, BA 7 rows, MSFT/NVDA 0 rows, all from the already-
+shipped filtering logic, not a regression. Before "fixing" a low contract
+count, check the time of day and re-test during US market hours first.
