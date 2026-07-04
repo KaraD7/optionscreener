@@ -55,7 +55,7 @@ shape back: `{ spot, expirations[], calls[], puts[], closes[] }`.
 
 ## Tech
 
-Next.js 14 (App Router), React 18, zero runtime dependencies beyond Next/React.
+Next.js 16 (App Router), React 19, zero runtime dependencies beyond Next/React.
 
 ## Workflow: versioning, releases, previews, rollback
 

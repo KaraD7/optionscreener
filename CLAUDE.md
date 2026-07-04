@@ -4,7 +4,7 @@ Persistent instructions for Claude Code sessions on this repo. Read this first,
 every session.
 
 ## What this project is
-IV/HV Options Screener + Trade Analyzer. Next.js 14 App Router, deployed on
+IV/HV Options Screener + Trade Analyzer. Next.js 16 App Router, deployed on
 Vercel. See `ARCHITECTURE.md` for the technical map.
 
 ## Versioning

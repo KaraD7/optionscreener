@@ -5,6 +5,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-04
+### Changed
+- Upgraded Next.js 14.2.5 → 16.2.10 and React 18.3.1 → 19.2.7. Closes all
+  Next.js security advisories that applied to the 14.2.5 line (including the
+  middleware authorization bypass, CVE-2025-29927). No app-facing behavior
+  changes; build and live API verified after the upgrade.
+
 ## [1.3.0] - 2026-07-01
 ### Added
 - Selected-contract mini-analysis: clicking a row now also runs it through

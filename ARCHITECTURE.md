@@ -1,7 +1,7 @@
 # Architecture
 
 ## Overview
-Next.js 14 (App Router), deployed on Vercel. No database, no auth, no external
+Next.js 16 (App Router), deployed on Vercel. No database, no auth, no external
 API keys. Two independent features share the same UI shell and formatting/math
 utilities.
 
