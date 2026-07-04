@@ -274,3 +274,22 @@ tbody tr.selected:hover { background: rgba(88,166,255,0.18); }
 .chip { background: var(--ink); border: 1px solid var(--line); color: var(--muted); border-radius: 20px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
 .chip.on { background: var(--neutral); color: #06131f; border-color: var(--neutral); font-weight: 600; }
 .run.wide { width: 100%; margin-top: 16px; padding: 13px; font-size: 16px; }
+
+/* ---- insiders tab: entry-horizon cards ---- */
+.periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 4px 0 22px; }
+@media (max-width: 960px) { .periods { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .periods { grid-template-columns: 1fr; } }
+.periodcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; cursor: pointer; text-align: left; color: var(--text); font-family: var(--body); }
+.periodcard.on { border-color: var(--text); }
+.periodcard.rec { border-color: var(--cheap); box-shadow: 0 0 0 1px var(--cheap) inset; }
+.periodcard .phead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.periodcard h3 { margin: 0; font-family: var(--display); font-size: 16px; font-weight: 700; }
+.periodcard .dterange { color: var(--faint); font-size: 11px; margin-top: 2px; }
+.recbadge { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cheap); background: rgba(65,194,106,0.12); border-radius: 5px; padding: 3px 7px; white-space: nowrap; }
+.pscore { font-family: var(--mono); font-size: 24px; font-weight: 700; margin: 10px 0 2px; }
+.pscore span { font-family: var(--body); font-size: 11px; font-weight: 400; color: var(--faint); }
+.preasons { margin: 8px 0 0; padding-left: 16px; }
+.preasons li { font-size: 12px; line-height: 1.5; color: var(--muted); margin-bottom: 3px; }
+.preasons li.good::marker { color: var(--cheap); }
+.preasons li.ok::marker { color: var(--warm); }
+.preasons li.bad::marker { color: var(--rich); }

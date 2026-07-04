@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Screener from './components/Screener';
 import Analyzer from './components/Analyzer';
+import Insiders from './components/Insiders';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 import pkg from '../package.json';
 
@@ -18,6 +19,9 @@ function LangSwitcher() {
 
 function AppBody() {
   const [tab, setTab] = useState('screener');
+  // Set from the Insiders tab's "Open in Screener" cross-link; seq forces the
+  // effect to re-fire even for the same ticker.
+  const [preset, setPreset] = useState(null);
   const { t } = useLanguage();
   return (
     <div className="wrap">
@@ -36,9 +40,24 @@ function AppBody() {
           {t('tabAnalyzer')}
           <span>{t('tabAnalyzerSub')}</span>
         </button>
+        <button className={tab === 'insiders' ? 'on' : ''} onClick={() => setTab('insiders')}>
+          {t('tabInsiders')}
+          <span>{t('tabInsidersSub')}</span>
+        </button>
       </div>
 
-      {tab === 'screener' ? <Screener /> : <Analyzer />}
+      {tab === 'screener' ? (
+        <Screener preset={preset} />
+      ) : tab === 'analyzer' ? (
+        <Analyzer />
+      ) : (
+        <Insiders
+          onOpenInScreener={(ticker) => {
+            setPreset({ ticker, seq: Date.now() });
+            setTab('screener');
+          }}
+        />
+      )}
     </div>
   );
 }

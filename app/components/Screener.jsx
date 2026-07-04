@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { pct, fix, money, dateStr, ratioColor } from '../../lib/format';
 import { analyze } from '../../lib/analysis';
 import Info from './Info';
@@ -110,7 +110,7 @@ const COLS = [
   { key: 'dealScore', labelKey: 'colDeal' },
 ];
 
-export default function Screener() {
+export default function Screener({ preset }) {
   const { t, lang } = useLanguage();
   const [ticker, setTicker] = useState('');
   const [rate, setRate] = useState('4.3');
@@ -127,8 +127,17 @@ export default function Screener() {
   const [minVol, setMinVol] = useState('');
   const [selected, setSelected] = useState(null);
 
-  async function run() {
-    const tk = ticker.trim().toUpperCase();
+  // Cross-link from the Insiders tab: preload the ticker and run immediately.
+  useEffect(() => {
+    if (preset && preset.ticker) {
+      setTicker(preset.ticker);
+      run(preset.ticker);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset && preset.seq]);
+
+  async function run(sym) {
+    const tk = (typeof sym === 'string' ? sym : ticker).trim().toUpperCase();
     if (!tk) return;
     setLoading(true);
     setErr('');
