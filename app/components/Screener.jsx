@@ -1,10 +1,25 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { pct, fix, money, dateStr, ratioColor } from '../../lib/format';
 import { analyze } from '../../lib/analysis';
 import Info from './Info';
 import { useLanguage } from './LanguageContext';
+import { useFavorites } from './FavoritesContext';
+
+function Star({ on, onClick, title }) {
+  return (
+    <button
+      className={`star ${on ? 'on' : ''}`}
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      aria-pressed={on}
+    >
+      {on ? '★' : '☆'}
+    </button>
+  );
+}
 
 function Gauge({ iv, band, t }) {
   if (!band || band.max <= band.min) {
@@ -27,12 +42,17 @@ function Gauge({ iv, band, t }) {
   );
 }
 
-function BestCard({ row, band, eyebrow, sideLabel, onClose, t }) {
+function BestCard({ row, band, eyebrow, sideLabel, onClose, favOn, onFav, favTitle, t }) {
   if (!row) return null;
   return (
     <div className={`card ${row.type}`}>
       {onClose && (
         <button className="cardclose" onClick={onClose} aria-label="Close">×</button>
+      )}
+      {onFav && (
+        <span className="cardstar">
+          <Star on={favOn} onClick={onFav} title={favTitle} />
+        </span>
       )}
       <div className="eyebrow">{eyebrow}</div>
       <div className="side">{sideLabel}</div>
@@ -110,8 +130,9 @@ const COLS = [
   { key: 'dealScore', labelKey: 'colDeal' },
 ];
 
-export default function Screener() {
+export default function Screener({ preset }) {
   const { t, lang } = useLanguage();
+  const { isTickerFav, toggleTicker, isOptionFav, toggleOption } = useFavorites();
   const [ticker, setTicker] = useState('');
   const [rate, setRate] = useState('4.3');
   const [comm, setComm] = useState('0.65');
@@ -127,8 +148,17 @@ export default function Screener() {
   const [minVol, setMinVol] = useState('');
   const [selected, setSelected] = useState(null);
 
-  async function run() {
-    const tk = ticker.trim().toUpperCase();
+  // Cross-link from the Insiders tab: preload the ticker and run immediately.
+  useEffect(() => {
+    if (preset && preset.ticker) {
+      setTicker(preset.ticker);
+      run(preset.ticker);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset && preset.seq]);
+
+  async function run(sym) {
+    const tk = (typeof sym === 'string' ? sym : ticker).trim().toUpperCase();
     if (!tk) return;
     setLoading(true);
     setErr('');
@@ -146,6 +176,17 @@ export default function Screener() {
       setLoading(false);
     }
   }
+
+  // Attach the ticker (rows from the API don't carry it) so favorites can
+  // re-fetch the right chain later.
+  const favOf = (r) => ({
+    ticker: data.ticker,
+    type: r.type,
+    strike: r.strike,
+    expiration: r.expiration,
+    contractSymbol: r.contractSymbol,
+    premium: r.premium,
+  });
 
   function analyzeRow(row) {
     const band = data.hv.band52w;
@@ -250,7 +291,14 @@ export default function Screener() {
       {data && (
         <>
           <div className="summary">
-            <div className="sym">{data.ticker}<span className="co">{data.name}</span></div>
+            <div className="sym">
+              <Star
+                on={isTickerFav(data.ticker)}
+                onClick={() => toggleTicker(data.ticker)}
+                title={t('favTickers')}
+              />
+              {data.ticker}<span className="co">{data.name}</span>
+            </div>
             <div className="stat"><div className="k">{t('price')}</div><div className="v">{money(data.spot)}</div></div>
             <div className="stat"><div className="k">{t('atmIv')}</div><div className="v">{pct(data.hv.atmIv)}</div></div>
             <div className="stat"><div className="k">{t('hv20')}</div><div className="v">{pct(data.hv.hv20)}</div></div>
@@ -268,8 +316,18 @@ export default function Screener() {
           )}
 
           <div className="cards">
-            <BestCard row={data.bestCall} band={data.hv.band52w} eyebrow={t('cheapestVol')} sideLabel={t('bestCall')} t={t} />
-            <BestCard row={data.bestPut} band={data.hv.band52w} eyebrow={t('cheapestVol')} sideLabel={t('bestPut')} t={t} />
+            <BestCard
+              row={data.bestCall} band={data.hv.band52w} eyebrow={t('cheapestVol')} sideLabel={t('bestCall')}
+              favOn={data.bestCall && isOptionFav(data.bestCall)}
+              onFav={data.bestCall ? () => toggleOption(favOf(data.bestCall)) : null}
+              favTitle={t('favOptions')} t={t}
+            />
+            <BestCard
+              row={data.bestPut} band={data.hv.band52w} eyebrow={t('cheapestVol')} sideLabel={t('bestPut')}
+              favOn={data.bestPut && isOptionFav(data.bestPut)}
+              onFav={data.bestPut ? () => toggleOption(favOf(data.bestPut)) : null}
+              favTitle={t('favOptions')} t={t}
+            />
           </div>
 
           {selected && (
@@ -280,6 +338,9 @@ export default function Screener() {
                 eyebrow={t('selectedContract')}
                 sideLabel={selected.type === 'call' ? t('call') : t('put')}
                 onClose={() => setSelected(null)}
+                favOn={isOptionFav(selected)}
+                onFav={() => toggleOption(favOf(selected))}
+                favTitle={t('favOptions')}
                 t={t}
               />
               <SelectedAnalysis a={selectedAnalysis} t={t} />
@@ -332,6 +393,7 @@ export default function Screener() {
             <table>
               <thead>
                 <tr>
+                  <th className="starcol" aria-hidden="true"></th>
                   {COLS.map((c) => (
                     <th key={c.key} onClick={() => toggleSort(c.key)}>
                       {t(c.labelKey)}{sortKey === c.key ? (asc ? ' ↑' : ' ↓') : ''}
@@ -346,6 +408,13 @@ export default function Screener() {
                     className={selected && (selected.contractSymbol || null) === r.contractSymbol ? 'selected' : ''}
                     onClick={() => setSelected((cur) => (cur && cur.contractSymbol === r.contractSymbol ? null : r))}
                   >
+                    <td className="starcol" onClick={(e) => e.stopPropagation()}>
+                      <Star
+                        on={isOptionFav(r)}
+                        onClick={() => toggleOption(favOf(r))}
+                        title={t('favOptions')}
+                      />
+                    </td>
                     <td><span className={`tag ${r.type}`}>{r.type === 'call' ? 'C' : 'P'}</span></td>
                     <td className={r.inTheMoney ? 'itm' : ''}>{fix(r.strike, 2)}</td>
                     <td>{dateStr(r.expiration)}</td>

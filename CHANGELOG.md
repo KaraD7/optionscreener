@@ -5,6 +5,41 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-05
+### Added
+- New "Favorites" tab with two separate lists — **Tickers** and **Options** —
+  persisted to the browser via localStorage (no account, no backend).
+- Star buttons throughout the Screener: on the ticker summary (save a
+  ticker), on every contract row, and on the Best call/put and Selected
+  contract cards (save an option contract).
+- Saved tickers show a one-click "Scan" that jumps to the Screener with the
+  ticker preloaded and the scan already running.
+- **Price alerts** on saved options: set a target buy price per contract;
+  while the tab is open the app re-checks prices every ~2 minutes (and on
+  demand via "Check prices now"), and when a contract trades at or below
+  your target you get a browser notification (opt-in) plus a green "below
+  target" badge on the card and a count badge on the Favorites tab.
+- Full EN/BG translations for the new tab and all alert states.
+
+## [1.4.0] - 2026-07-04
+### Added
+- New "Insiders" tab: pulls a company's SEC Form 4 filings straight from
+  EDGAR (official, free, no API key), shows recent open-market insider buys
+  and sales, and scores **cluster buys** (several distinct insiders buying
+  within a 30-day window; strong / moderate / weak / none, with a caution
+  flag when sales drown out purchases).
+- Entry-horizon comparison in the Insiders tab: the live option chain is
+  bucketed into 7d / 50–60d / ~90d / 3+ months by DTE, each bucket's best
+  contract is scored (verdict score + chance of profit − theta drag +
+  insider-horizon alignment bonus), and the best horizon is recommended
+  with per-bucket reasons — including the "exit before the final 30 days"
+  rule and a lottery-ticket warning on the 7d bucket.
+- "Open in Screener" cross-link: jumps from the Insiders tab to the
+  Screener with the ticker preloaded and the scan already running.
+- New isolated data module `lib/edgar.js` (same swap-friendly pattern as
+  `lib/yahoo.js`) + `/api/insiders` route + pure scoring modules
+  `lib/insiders.js` and `lib/periods.js`. Full EN/BG strings.
+
 ## [1.3.1] - 2026-07-04
 ### Changed
 - Upgraded Next.js 14.2.5 → 16.2.10 and React 18.3.1 → 19.2.7. Closes all
