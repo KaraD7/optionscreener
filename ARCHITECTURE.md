@@ -2,8 +2,10 @@
 
 ## Overview
 Next.js 16 (App Router), deployed on Vercel. No database, no auth, no external
-API keys. Three features share the same UI shell and formatting/math
-utilities: the Screener, the Trade analyzer, and the Insiders tab.
+API keys. Four features share the same UI shell and formatting/math
+utilities: the Screener, the Trade analyzer, the Insiders tab, and the
+Favorites tab. Favorites state lives entirely in the browser (localStorage),
+keeping the "no backend state" property intact.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -119,12 +121,41 @@ Fully client-side, zero network calls. `lib/analysis.js`:
    overrides everything if IV is rich, "Long-shot" overrides everything if POP
    is very low, regardless of how cheap the volatility looks.
 
+## Data flow — Favorites tab
+Fully client-side; state persisted to `localStorage`, no network except the
+price re-checks (which reuse the existing `/api/options` route).
+1. `app/components/FavoritesContext.jsx` is an app-level provider (wrapped
+   inside `LanguageProvider` in `app/page.js`). It holds two lists —
+   `tickers` (symbols) and `options` (saved contracts) — hydrated from
+   `localStorage` key `favorites.v1` on mount and written back on change.
+2. Star buttons in `Screener.jsx` call `toggleTicker` / `toggleOption`. A
+   saved option stores a stable `id` (`contractSymbol`, or
+   `ticker|type|strike|expiration`), the premium at save time, and a
+   user-set `targetPrice`.
+3. Price watcher: a single `setInterval` (every ~2 min while the tab is
+   open) plus a manual "Check prices now" button. Each run groups watched
+   options (those with a `targetPrice`) by ticker, fetches each ticker's
+   chain once via `/api/options`, matches contracts by `contractSymbol`
+   (falling back to type/strike/expiration), and updates `lastPrice`.
+4. Alerts: when a contract's price crosses to ≤ its target, a Web
+   Notification fires (opt-in via `Notification.requestPermission()`), the
+   card gets a green "below target" state, and the Favorites tab shows a
+   count badge. The alert is de-duped (`alertFired`) and re-arms only after
+   the price climbs back above target. Notifications require the tab to be
+   open — by design there is no service worker or server-side cron (that
+   would need a backend + subscription storage, breaking the no-database
+   architecture).
+5. "Scan" on a saved ticker and the option's ticker link reuse the same
+   `preset` cross-link mechanism as the Insiders tab to open the Screener.
+
 ## Key constants (tunable)
 `app/api/options/route.js`: `MAX_EXPIRATIONS`, `STRIKE_WINDOW`, `MIN_OI`,
 `MIN_VOL`, `MIN_IV`, `MIN_DTE_FOR_RANK`, `MIN_BEST_DELTA`.
 `lib/edgar.js`: `MAX_FILINGS`. `lib/insiders.js`: cluster thresholds
 ($100k/$500k, buyer counts, 3× net-selling ratio). `lib/periods.js`:
 `PERIODS` DTE ranges and `INSIDER_ALIGN` bonuses.
+`app/components/FavoritesContext.jsx`: `POLL_MS` (price re-check interval),
+`STORAGE_KEY` (localStorage key + version suffix).
 
 ## Internationalization
 `lib/i18n.js` holds a flat `{ en: {...}, bg: {...} }` dictionary and

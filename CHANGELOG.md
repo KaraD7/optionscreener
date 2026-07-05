@@ -5,6 +5,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-05
+### Added
+- New "Favorites" tab with two separate lists — **Tickers** and **Options** —
+  persisted to the browser via localStorage (no account, no backend).
+- Star buttons throughout the Screener: on the ticker summary (save a
+  ticker), on every contract row, and on the Best call/put and Selected
+  contract cards (save an option contract).
+- Saved tickers show a one-click "Scan" that jumps to the Screener with the
+  ticker preloaded and the scan already running.
+- **Price alerts** on saved options: set a target buy price per contract;
+  while the tab is open the app re-checks prices every ~2 minutes (and on
+  demand via "Check prices now"), and when a contract trades at or below
+  your target you get a browser notification (opt-in) plus a green "below
+  target" badge on the card and a count badge on the Favorites tab.
+- Full EN/BG translations for the new tab and all alert states.
+
 ## [1.4.0] - 2026-07-04
 ### Added
 - New "Insiders" tab: pulls a company's SEC Form 4 filings straight from
