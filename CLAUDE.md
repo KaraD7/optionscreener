@@ -7,6 +7,14 @@ every session.
 IV/HV Options Screener + Trade Analyzer. Next.js 16 App Router, deployed on
 Vercel. See `ARCHITECTURE.md` for the technical map.
 
+Since v2.0.0 there are two **optional** backend systems, both off by default
+and degrading gracefully (see `.env.example`): a single-passcode gate
+(`APP_PASSCODE` + `SESSION_SECRET`, via `middleware.js`) and favorites
+persistence in Vercel Postgres (`POSTGRES_URL`, via `lib/db.js`). With no env
+vars set the app is open and favorites are localStorage-only, exactly like
+v1.5.0. Never commit real secrets — they live only in Vercel env vars and a
+gitignored `.env.local`.
+
 ## Versioning
 Semantic versioning (`MAJOR.MINOR.PATCH`) in `package.json`.
 - **PATCH** (1.0.x): bug fixes, copy/tooltip changes, styling tweaks.
@@ -65,7 +73,11 @@ Yahoo Finance (`lib/yahoo.js`) is unofficial and isolated from the rest of the
 app on purpose. If it starts failing (Vercel datacenter IPs get rate-limited),
 swap that one file for Tradier's free API without touching anything else —
 the API route only expects `{ spot, expirations[], calls[], puts[], closes[] }`
-back from it.
+back from it. The EDGAR insider layer (`lib/edgar.js`) and the favorites DB
+layer (`lib/db.js`) follow the same isolation pattern — one file each, swap
+freely. `lib/db.js` is single-user (one row, id `singleton`) because the
+passcode gate is the privacy boundary; if the app ever needs multiple users,
+that's where per-user scoping (a key column) would go, alongside real auth.
 
 **"Only 1-2 liquid contracts show up" is very often not a bug.** Yahoo's free
 `impliedVolatility` field frequently falls back to a fake placeholder value

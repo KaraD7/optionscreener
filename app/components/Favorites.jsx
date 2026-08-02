@@ -70,9 +70,21 @@ export default function Favorites({ onOpenInScreener }) {
     enableNotifications,
     checkNow,
     checking,
+    serverSync,
   } = useFavorites();
   const [sub, setSub] = useState('tickers');
   const [notifyBlocked, setNotifyBlocked] = useState(false);
+
+  const syncPill =
+    serverSync === 'saving'
+      ? { cls: 'saving', key: 'syncSaving' }
+      : serverSync === 'synced'
+      ? { cls: 'synced', key: 'syncSynced' }
+      : serverSync === 'error'
+      ? { cls: 'error', key: 'syncError' }
+      : serverSync === 'offline'
+      ? { cls: '', key: 'syncOffline' }
+      : null;
 
   const scan = (tk) => onOpenInScreener && onOpenInScreener(tk);
 
@@ -92,7 +104,8 @@ export default function Favorites({ onOpenInScreener }) {
             {t('favOptions')} ({options.length})
           </button>
         </div>
-        <div className="filters">
+        <div className="filters" style={{ alignItems: 'center', gap: 10 }}>
+          {syncPill && <span className={`syncpill ${syncPill.cls}`}>{t(syncPill.key)}</span>}
           <button className={notifyEnabled ? 'on' : ''} onClick={onEnableNotifications}>
             {notifyEnabled ? t('favNotifyOn') : t('favNotifyEnable')}
           </button>

@@ -41,7 +41,19 @@ export function FavoritesProvider({ children }) {
   const [lastCheck, setLastCheck] = useState(null);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from localStorage on mount (client only, avoids SSR mismatch).
+  // Server sync: 'idle' before load, then 'offline' (no DB configured — this
+  // device only), 'saving', 'synced', or 'error'. localStorage always stays a
+  // local mirror/offline cache regardless.
+  const [serverSync, setServerSync] = useState('idle');
+  const [loaded, setLoaded] = useState(false);
+  const lastPushedJson = useRef(null);
+  const serverSyncRef = useRef('idle');
+  serverSyncRef.current = serverSync;
+
+  // Hydrate from localStorage, then reconcile with the server (if the DB is
+  // configured). Server is the source of truth on load; if the server is
+  // empty but this device has favorites (e.g. a v1.5.0 user upgrading), push
+  // the local list up once to migrate it.
   useEffect(() => {
     const s = loadState();
     setTickers(s.tickers);
@@ -53,6 +65,48 @@ export function FavoritesProvider({ children }) {
       setNotifyEnabled(true);
     }
     setHydrated(true);
+
+    (async () => {
+      try {
+        const res = await fetch('/api/favorites');
+        if (!res.ok) {
+          setServerSync('offline');
+          return;
+        }
+        const json = await res.json();
+        if (!json.configured) {
+          setServerSync('offline');
+          return;
+        }
+        const d = json.data;
+        const serverHasContent = d && ((d.tickers?.length || 0) + (d.options?.length || 0) > 0);
+        if (serverHasContent) {
+          setTickers(d.tickers || []);
+          setOptions(d.options || []);
+          lastPushedJson.current = JSON.stringify({
+            tickers: d.tickers || [],
+            options: d.options || [],
+          });
+          setServerSync('synced');
+        } else if (s.tickers.length || s.options.length) {
+          const payload = { tickers: s.tickers, options: s.options };
+          await fetch('/api/favorites', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          lastPushedJson.current = JSON.stringify(payload);
+          setServerSync('synced');
+        } else {
+          lastPushedJson.current = JSON.stringify({ tickers: [], options: [] });
+          setServerSync('synced');
+        }
+      } catch {
+        setServerSync('error');
+      } finally {
+        setLoaded(true);
+      }
+    })();
   }, []);
 
   // Persist whenever favorites change (after hydration, so we don't clobber
@@ -61,6 +115,36 @@ export function FavoritesProvider({ children }) {
     if (!hydrated) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ tickers, options }));
   }, [tickers, options, hydrated]);
+
+  // Debounced push to the server after the initial load, unless the DB isn't
+  // configured (offline mode). Skips when nothing actually changed vs the last
+  // push (the same in-memory objects serialize identically).
+  useEffect(() => {
+    if (!loaded || serverSyncRef.current === 'offline') return;
+    const json = JSON.stringify({ tickers, options });
+    if (json === lastPushedJson.current) return;
+    setServerSync('saving');
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/favorites', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: json,
+        });
+        if (!res.ok) throw new Error('save failed');
+        const j = await res.json();
+        if (j.configured === false) {
+          setServerSync('offline');
+          return;
+        }
+        lastPushedJson.current = json;
+        setServerSync('synced');
+      } catch {
+        setServerSync('error');
+      }
+    }, 800);
+    return () => clearTimeout(id);
+  }, [tickers, options, loaded]);
 
   // ---- tickers ----
   const isTickerFav = useCallback((tk) => tickers.includes(tk), [tickers]);
@@ -255,6 +339,7 @@ export function FavoritesProvider({ children }) {
         checking,
         lastCheck,
         alertCount,
+        serverSync,
       }}
     >
       {children}

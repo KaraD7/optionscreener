@@ -330,3 +330,22 @@ th.starcol, td.starcol { width: 30px; padding-left: 4px; padding-right: 0; text-
 .favstatus.watch { color: var(--warm); }
 .favstatus.muted { color: var(--faint); }
 .favchecked { font-size: 11px; color: var(--faint); margin-left: auto; }
+
+/* ---- unlock (passcode gate) ---- */
+.unlockwrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.unlockcard { width: 100%; max-width: 360px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 30px 26px; text-align: center; }
+.unlockcard .mark { font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: -0.02em; margin-bottom: 18px; }
+.unlockcard .mark b { color: var(--cheap); }
+.unlockcard h1 { font-family: var(--display); font-size: 20px; font-weight: 700; margin: 0 0 6px; }
+.unlockcard p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0 0 20px; }
+.unlockcard input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 12px 14px; font-family: var(--mono); font-size: 15px; text-align: center; letter-spacing: 0.1em; }
+.unlockcard input:focus { outline: none; border-color: var(--cheap); }
+.unlockcard button { width: 100%; margin-top: 12px; background: var(--cheap); color: #05210f; border: none; border-radius: 10px; padding: 12px; font-family: var(--display); font-weight: 700; font-size: 15px; cursor: pointer; }
+.unlockcard button:disabled { opacity: 0.55; cursor: default; }
+.unlockmsg { margin-top: 14px; color: var(--rich); font-size: 13px; }
+
+/* ---- sync status pill ---- */
+.syncpill { font-size: 11px; color: var(--faint); font-family: var(--body); }
+.syncpill.saving { color: var(--warm); }
+.syncpill.synced { color: var(--cheap); }
+.syncpill.error { color: var(--rich); }
