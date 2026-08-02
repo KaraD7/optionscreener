@@ -1,11 +1,18 @@
 # Architecture
 
 ## Overview
-Next.js 16 (App Router), deployed on Vercel. No database, no auth, no external
-API keys. Four features share the same UI shell and formatting/math
-utilities: the Screener, the Trade analyzer, the Insiders tab, and the
-Favorites tab. Favorites state lives entirely in the browser (localStorage),
-keeping the "no backend state" property intact.
+Next.js 16 (App Router), deployed on Vercel. Four features share the same UI
+shell and formatting/math utilities: the Screener, the Trade analyzer, the
+Insiders tab, and the Favorites tab.
+
+Two optional backend systems were added in v2.0.0, **both off by default and
+degrading gracefully** so the app still runs with zero configuration:
+- **Passcode gate** (`middleware.js` + `lib/auth.js`): active only when
+  `APP_PASSCODE` + `SESSION_SECRET` are set. A single shared passcode, no user
+  accounts.
+- **Favorites database** (`lib/db.js`, Vercel Postgres): used only when
+  `POSTGRES_URL` is set; otherwise favorites stay in `localStorage` exactly as
+  in v1.5.0. There are no external API keys for market data.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -121,13 +128,41 @@ Fully client-side, zero network calls. `lib/analysis.js`:
    overrides everything if IV is rich, "Long-shot" overrides everything if POP
    is very low, regardless of how cheap the volatility looks.
 
+## Passcode gate (optional)
+`middleware.js` runs on the Edge for every request except Next internals, the
+`/unlock` page, `/api/unlock`, and a few static files (see its `matcher`).
+- Active only when `APP_PASSCODE` **and** `SESSION_SECRET` are set. Unset →
+  `NextResponse.next()` for everything (no gate), so you can't lock yourself
+  out locally or by forgetting to configure it.
+- When active: it verifies an HMAC-signed cookie (`osr_auth`). Missing/invalid
+  → API requests get a `401 {error:'locked'}`, page requests redirect to
+  `/unlock?next=<path>`.
+- `/api/unlock` (Node runtime) compares the submitted passcode to
+  `APP_PASSCODE` with a constant-time check and, on success, sets the
+  httpOnly, secure, ~90-day cookie. `lib/auth.js` does the signing/verifying
+  with Web Crypto HMAC-SHA256 (works in both Edge middleware and Node routes);
+  the cookie is stateless (`v1.<expiryMs>.<hmac>`), no session store.
+- Single shared passcode, **not** per-user accounts — the gate is the boundary
+  that makes the single-row favorites DB private.
+
 ## Data flow — Favorites tab
-Fully client-side; state persisted to `localStorage`, no network except the
-price re-checks (which reuse the existing `/api/options` route).
+Client-driven; persisted to `localStorage` always, and to Postgres when the DB
+is configured. The only other network calls are the price re-checks (which
+reuse the existing `/api/options` route).
 1. `app/components/FavoritesContext.jsx` is an app-level provider (wrapped
    inside `LanguageProvider` in `app/page.js`). It holds two lists —
    `tickers` (symbols) and `options` (saved contracts) — hydrated from
    `localStorage` key `favorites.v1` on mount and written back on change.
+1a. **Server sync** (when `/api/favorites` reports `configured: true`): on
+   load the server row is the source of truth; if the server is empty but this
+   device has favorites (a v1.5.0 user upgrading), the local list is pushed up
+   once to migrate it. Subsequent changes are debounced (~800ms) and PUT to
+   `/api/favorites`, which stores everything in a single Postgres row
+   (`lib/db.js`, id `singleton`). If the DB isn't configured the API returns
+   `configured: false` and the provider stays in localStorage-only "offline"
+   mode. A sync-status pill (synced / saving / offline / error) reflects this.
+   Because the whole app sits behind the passcode gate, one shared row needs no
+   per-user scoping.
 2. Star buttons in `Screener.jsx` call `toggleTicker` / `toggleOption`. A
    saved option stores a stable `id` (`contractSymbol`, or
    `ticker|type|strike|expiration`), the premium at save time, and a
@@ -156,6 +191,8 @@ price re-checks (which reuse the existing `/api/options` route).
 `PERIODS` DTE ranges and `INSIDER_ALIGN` bonuses.
 `app/components/FavoritesContext.jsx`: `POLL_MS` (price re-check interval),
 `STORAGE_KEY` (localStorage key + version suffix).
+`lib/auth.js`: `AUTH_COOKIE`, cookie TTL. `app/api/unlock/route.js`: `TTL_MS`.
+`lib/db.js`: `ROW_ID` (single-row id).
 
 ## Internationalization
 `lib/i18n.js` holds a flat `{ en: {...}, bg: {...} }` dictionary and
@@ -173,10 +210,14 @@ call `t('key')` (components) or `t(lang, 'key')` (lib/analysis.js).
 ## Deployment
 - Vercel Git integration: push to `main` → production deploy. Push to any
   other branch / open a PR → preview deploy with its own URL.
-- `/api/options` and `/api/insiders` run as Node.js serverless functions
-  (`export const runtime = 'nodejs'`), not Edge — needed for the Yahoo
-  cookie/crumb handshake and consistent with it for EDGAR.
-- No environment variables required.
+- `/api/options`, `/api/insiders`, `/api/favorites`, and `/api/unlock` run as
+  Node.js serverless functions (`export const runtime = 'nodejs'`), not Edge —
+  needed for the Yahoo cookie/crumb handshake, the Postgres client, etc. The
+  gate `middleware.js` runs on the Edge (cookie check only, no DB).
+- Environment variables (all optional, see `.env.example`): `APP_PASSCODE` +
+  `SESSION_SECRET` enable the gate; `POSTGRES_URL` (auto-set by the Vercel
+  Postgres integration) enables favorites persistence. With none set, the app
+  runs open + localStorage-only.
 
 ## Known fragility
 Yahoo Finance is unofficial. If Vercel's datacenter IPs get rate-limited,

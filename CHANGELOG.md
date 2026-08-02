@@ -5,6 +5,31 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-05
+### Added
+- **Server-persisted favorites** (Vercel Postgres). Saved tickers and options
+  now sync to a database so they survive a browser wipe and follow you across
+  devices, instead of living only in `localStorage`. New `lib/db.js` (isolated
+  like `lib/yahoo.js`/`lib/edgar.js`) + `/api/favorites` (GET/PUT a single
+  JSON blob). Existing localStorage favorites migrate up to the DB
+  automatically on first load. A small sync-status pill shows synced/saving/
+  offline in the Favorites tab.
+- **Passcode gate** (optional, free, no accounts). A root `middleware.js`
+  guards every page and API route; unauthenticated visits are redirected to a
+  new `/unlock` page. Entering the passcode (checked against `APP_PASSCODE`)
+  sets an HMAC-signed, httpOnly cookie for ~90 days via `/api/unlock`, so you
+  sign in once per device. `lib/auth.js` holds the shared sign/verify logic
+  (Web Crypto, runs in both Edge and Node).
+- `.env.example` documenting the new environment variables.
+
+### Changed
+- **BREAKING (architecture):** the app is no longer strictly backend-stateless
+  — it now optionally uses a database and env-var configuration. Both new
+  systems are **off by default and degrade gracefully**: with no `APP_PASSCODE`
+  the gate is disabled, and with no `POSTGRES_URL` favorites fall back to
+  localStorage-only, so the app runs unchanged until you configure them in
+  Vercel.
+
 ## [1.5.0] - 2026-07-05
 ### Added
 - New "Favorites" tab with two separate lists — **Tickers** and **Options** —
